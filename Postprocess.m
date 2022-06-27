@@ -128,7 +128,7 @@ function fig1 = PAFheadmap(tbl, vars, rows, sttl)
 
                 PAF = arrayfun(@(c) getPAF(P(c,:),w), 1:nchan);
     
-                topoplot(PAF, chlocs, 'maplimits', 'maxmin'); colorbar;
+                topoplot(PAF, chlocs, 'maplimits', [9, 11]); colorbar;
             end
             title([vname,' ',rttl]);
 
@@ -215,7 +215,7 @@ function [fig1, ax, fig2] = before_after_spectra(tbl, vars, rows, sttl, comparRo
             rho = diag(corr(P_v(:,:,1)',P_v(:,:,2)'))';
             %rho(isnan(rho)) = 0;
             if ~sum(isnan(rho))
-                topoplot(rho, chlocs, 'maplimits', 'maxmin'); colorbar;
+                topoplot(rho, chlocs, 'maplimits', [0, 1]); colorbar;
             end
         end
         idx = idx + 1;
