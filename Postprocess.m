@@ -73,16 +73,8 @@ for subj = 1:size(scanfiles,1)
     %}
 
     % Inspect PAF 
-    %{
-    cur = Spec_table.BaselineIce('before experiment');
-    cur = cur{1}(1);
-    chan = 1:cur.nbchan; 
-    M = zeros(size(chan)); NP = zeros(size(chan)); C = zeros(size(chan));
-    for c = chan
-        [M(c), pklocs, C(c)] = getPAF(cur.powerSpectrum(c,:), cur.frequency1side);
-        NP(c) = length(pklocs);
-    end
-    figure; plot(chan, [M; C]);
+    %%{
+    PAFheadmap(Spec_table, selVars, selRows, fn);
     %}
 end
 
@@ -98,7 +90,7 @@ function [SpecStruct, Y, w, P, wP] = fftPlot(y, fs)
     SpecStruct.powerSpectrum = P; SpecStruct.frequency1side = wP;
 end
 
-function [maxval, pklocs, CoG] = getPAF(P, w, alpha_bounds)
+function [CoG, maxval, pklocs] = getPAF(P, w, alpha_bounds)
     if nargin < 3
         alpha_bounds = [9, 11]; % Hz
     end
@@ -112,6 +104,37 @@ function [maxval, pklocs, CoG] = getPAF(P, w, alpha_bounds)
         pklocs = pklocs(fliplr(ord));
     end
     CoG = sum(w.*P)/sum(P);
+end
+
+function fig1 = PAFheadmap(tbl, vars, rows, sttl)
+    fig1 = figure; sgtitle(sttl);
+    subtbl = tbl(ismember(tbl.Properties.RowNames, rows), ...
+                 ismember(tbl.Properties.VariableNames, vars));
+
+    W = height(subtbl); H = width(subtbl);
+    idx = 1;
+    for v = 1:H
+        for r = 1:W
+            subplot(H,W,idx);
+
+            tblItem = subtbl(r,v);
+            rttl = tblItem.Properties.RowNames{1};
+            vname = tblItem.Properties.VariableNames{1};
+            eeg = tblItem{1,1}{1}; 
+            if ~isempty(eeg)
+                eeg = eeg(1); % first / longest duration only
+                nchan = eeg.nbchan; chlocs = eeg.chanlocs;
+                P = eeg.powerSpectrum; w = eeg.frequency1side;
+
+                PAF = arrayfun(@(c) getPAF(P(c,:),w), 1:nchan);
+    
+                topoplot(PAF, chlocs, 'maplimits', 'maxmin'); colorbar;
+            end
+            title([vname,' ',rttl]);
+
+            idx = idx + 1;
+        end
+    end
 end
 
 function [fig1, ax, fig2] = before_after_spectra(tbl, vars, rows, sttl, comparRows)
@@ -128,8 +151,7 @@ function [fig1, ax, fig2] = before_after_spectra(tbl, vars, rows, sttl, comparRo
         end
     end
 
-    fig1 = figure; 
-    sgtitle(sttl);
+    fig1 = figure; sgtitle(sttl);
     subtbl = tbl(ismember(tbl.Properties.RowNames, rows), ...
                  ismember(tbl.Properties.VariableNames, vars));
     nchan = 0; chlocs = [];
@@ -159,11 +181,15 @@ function [fig1, ax, fig2] = before_after_spectra(tbl, vars, rows, sttl, comparRo
     end
     linkaxes(ax, 'xy');
 
-    fig2 = figure;
+    fig2 = figure; sgtitle(sttl);
     idx = 1;
     for v = 1:H
         tblRow = [subtbl{:,v}{:}]; 
-        w_v = sort(unique([tblRow.frequency1side]));
+        if ~isempty(tblRow)
+            w_v = sort(unique([tblRow.frequency1side]));
+        else
+            w_v = [];
+        end
         P_v = zeros(nchan,length(w_v), W);
         for r = 1:W
             subplot(H,W+1,idx);
@@ -185,10 +211,12 @@ function [fig1, ax, fig2] = before_after_spectra(tbl, vars, rows, sttl, comparRo
         subplot(H,W+1,idx);
         title([rows{comparRows(1)},' vs ',rows{comparRows(2)}]);
         P_v = P_v(:,:,comparRows);
-        rho = diag(corr(P_v(:,:,1)',P_v(:,:,2)'))';
-        rho(isnan(rho)) = 0;
-        if sum(abs(rho))
-            topoplot(rho, chlocs);
+        if ~isempty(P_v)
+            rho = diag(corr(P_v(:,:,1)',P_v(:,:,2)'))';
+            %rho(isnan(rho)) = 0;
+            if ~sum(isnan(rho))
+                topoplot(rho, chlocs, 'maplimits', 'maxmin'); colorbar;
+            end
         end
         idx = idx + 1;
     end
