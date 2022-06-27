@@ -66,16 +66,20 @@ for subj = 1:size(scanfiles,1)
     %}
 
     % Inspect Baseline Spectra 
-    %%{
+    %{
     selVars = {'BaselineOpen', 'BaselineClosed', 'BaselineIce'};
     selRows = {'before experiment', 'after experiment'};
     before_after_spectra(Spec_table, selVars, selRows, fn);
     %}
 
     % Inspect PAF 
-    %%{
+    %{
+    selVars = {'BaselineOpen', 'BaselineClosed', 'BaselineIce'};
+    selRows = {'before experiment', 'after experiment'};
     PAFheadmap(Spec_table, selVars, selRows, fn);
     %}
+
+    % segment time series into 5s epochs 
 end
 
 %% helper functions
@@ -202,7 +206,7 @@ function [fig1, ax, fig2] = before_after_spectra(tbl, vars, rows, sttl, comparRo
                 P = Pw.powerSpectrum; w = Pw.frequency1side;
                 P_v(:,:,r) = interp1(w', P', w_v', 'linear', 'extrap')'; 
                 rho = corr(P');
-                heatmap(rho);
+                heatmap({chlocs.labels}, {chlocs.labels}, rho);
             end
             title([vname,' ',rttl]);
             
