@@ -117,12 +117,12 @@ for subj = 1:size(scanfiles,1)
     % inspect PAF across epochs (time) 
     figure; sgtitle(fn);
     W = height(Epoch_table); H = width(Epoch_table); idx = 1;
-    for r = 1:W
-        for c = 1:H
+    for c = 1:H
+        for r = 1:W
             cur = Epoch_table{r,c}{:};
             if length(cur) > 1
-                PAFscroll = cur(1); % original EEG
-                nchan = PAFscroll.nbchan;
+                % cur(1) = original EEG
+                nchan = cur(1).nbchan; 
                 PAFs = zeros(nchan, length(cur)-1, 2);
                 for chan = 1:nchan
                     PAFs(chan,:,1) = arrayfun(@(eegSpec) ...
@@ -132,20 +132,11 @@ for subj = 1:size(scanfiles,1)
                     PAFs(chan,:,2) = arrayfun(@(eeg) ...
                         mean([eeg.xmin, eeg.xmax]), Epoch_table{r,c}{:}(2:end));
                 end
-                
-                PAFscroll.data = PAFs(:,:,1);
-                PAFscroll.times = mean(PAFs(:,:,2),1);
-                PAFscroll.xmin = min(PAFscroll.times);
-                PAFscroll.xmax = max(PAFscroll.times);
-                PAFscroll.times = PAFscroll.times*1000;
-                PAFscroll.pnts = length(PAFscroll.times);
-                PAFscroll.srate = 1/epochT;
-
-                %pop_eegplot(PAFscroll, 1, 1, 1);
 
                 subplot(H,W,idx); hold on;
                 plot(PAFs(:,:,2)',PAFs(:,:,1)');
                 title([Epoch_table.Properties.VariableNames{c},' ',Epoch_table.Properties.RowNames{r}]);
+                xlabel('time (s)'); ylabel('PAF (Hz)');
                 for ev = cur(1).event
                     if ~isempty(ev.latency)
                         initTime = ev.latency/cur(1).srate;
@@ -157,7 +148,7 @@ for subj = 1:size(scanfiles,1)
             idx = idx + 1;
         end
     end
-    clear idx H W PAFs PAFscroll chan nchan initTime ev
+    clear idx H W PAFs chan nchan initTime ev
 
 end
 
