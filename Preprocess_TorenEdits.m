@@ -31,7 +31,7 @@ svloc = [home,'/Preprocessed ',datestr(datetime, 'yyyy-mm-dd HH.MM.SS')];
 %% Start eeglab
 eeglabpath = '/Applications/MATLAB_R2021b.app/toolbox/eeglab2022.0';
 addpath(eeglabpath)
-%eeglab
+eeglab
 
 %% Preprocessing in EEGLAB ---------------------------------------------
 mkdir(svloc);
@@ -87,7 +87,9 @@ for subj = 1:size(datafolders,1)
             %%{
 
             % initial modification 
-            EEG = pop_resample( EEG, 512);
+            if EEG.srate > 512
+                EEG = pop_resample( EEG, 512);
+            end
             EEG = pop_select( EEG,'nochannel',{'CB1' 'CB2' 'HEO' 'VEO' 'HEOG' 'VEOG'});
             EEG = pop_reref( EEG, []);
             EEG = pop_eegfiltnew(EEG, 2, 100, 826, 0, [], 1);
