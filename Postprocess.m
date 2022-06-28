@@ -45,6 +45,7 @@ for subj = 1:size(scanfiles,1)
             end
         end
     end
+    clear cur dur ord
     %}
 
     % table of frequency spectra 
@@ -63,23 +64,101 @@ for subj = 1:size(scanfiles,1)
             end
         end
     end
+    clear cur curSpecs
     %}
 
     % Inspect Baseline Spectra 
-    %{
+    %%{
     selVars = {'BaselineOpen', 'BaselineClosed', 'BaselineIce'};
     selRows = {'before experiment', 'after experiment'};
     before_after_spectra(Spec_table, selVars, selRows, fn);
     %}
 
     % Inspect PAF 
-    %{
+    %%{
     selVars = {'BaselineOpen', 'BaselineClosed', 'BaselineIce'};
     selRows = {'before experiment', 'after experiment'};
     PAFheadmap(Spec_table, selVars, selRows, fn);
     %}
 
     % segment time series into 5s epochs 
+    % (table of vectors where first element is original EEG and subsequent
+    % are EEG epochs)
+    %%{
+    epochT = 4; % s
+    Epoch_table = EEG_table;
+    EpochSpec_table = Epoch_table;
+    for r = 1:height(Epoch_table)
+        for c = 1:width(Epoch_table)
+            cur = EEG_table{r,c}{:};
+            if ~isempty(cur)
+                eeg = cur(1); % first / longest duration only
+                t = (eeg.xmin):epochT:(eeg.xmax); 
+                curEpochs = repmat(eeg, size(t)); 
+                curSpecs = repmat(Spec_table{r,c}{:}(1), size(t));
+                for idx = 2:length(t)
+                    curEpoch = pop_select(eeg, 'time', t(idx-[1,0]));
+                        curEpoch.xmin = curEpoch.xmin + t(idx-1);
+                        curEpoch.xmax = curEpoch.xmax + t(idx-1);
+                        curEpoch.times = curEpoch.times + t(idx-1)*1000;
+                    curEpochs(idx) = curEpoch;
+                    curSpec = fftPlot(curEpoch.data, curEpoch.srate);
+                    curSpec.chanlocs = curEpoch.chanlocs; curSpec.nbchan = curEpoch.nbchan;
+                    curSpecs(idx) = curSpec;
+                end
+                Epoch_table{r,c} = {curEpochs};
+                EpochSpec_table{r,c} = {curSpecs};
+            end
+        end
+    end
+    clear cur eeg t curEpoch curEpochs curSpec curSpecs
+    %}
+
+    % inspect PAF across epochs (time) 
+    figure; sgtitle(fn);
+    W = height(Epoch_table); H = width(Epoch_table); idx = 1;
+    for r = 1:W
+        for c = 1:H
+            cur = Epoch_table{r,c}{:};
+            if length(cur) > 1
+                PAFscroll = cur(1); % original EEG
+                nchan = PAFscroll.nbchan;
+                PAFs = zeros(nchan, length(cur)-1, 2);
+                for chan = 1:nchan
+                    PAFs(chan,:,1) = arrayfun(@(eegSpec) ...
+                        getPAF(eegSpec.powerSpectrum(chan,:), ...
+                        eegSpec.frequency1side), ...
+                        EpochSpec_table{r,c}{:}(2:end));
+                    PAFs(chan,:,2) = arrayfun(@(eeg) ...
+                        mean([eeg.xmin, eeg.xmax]), Epoch_table{r,c}{:}(2:end));
+                end
+                
+                PAFscroll.data = PAFs(:,:,1);
+                PAFscroll.times = mean(PAFs(:,:,2),1);
+                PAFscroll.xmin = min(PAFscroll.times);
+                PAFscroll.xmax = max(PAFscroll.times);
+                PAFscroll.times = PAFscroll.times*1000;
+                PAFscroll.pnts = length(PAFscroll.times);
+                PAFscroll.srate = 1/epochT;
+
+                %pop_eegplot(PAFscroll, 1, 1, 1);
+
+                subplot(H,W,idx); hold on;
+                plot(PAFs(:,:,2)',PAFs(:,:,1)');
+                title([Epoch_table.Properties.VariableNames{c},' ',Epoch_table.Properties.RowNames{r}]);
+                for ev = cur(1).event
+                    if ~isempty(ev.latency)
+                        initTime = ev.latency/cur(1).srate;
+                        plot(initTime+[0,.001], [9,11], 'r', 'LineWidth',1.5);
+                        text(initTime, 9, ev.type);
+                    end
+                end
+            end
+            idx = idx + 1;
+        end
+    end
+    clear idx H W PAFs PAFscroll chan nchan initTime ev
+
 end
 
 %% helper functions
