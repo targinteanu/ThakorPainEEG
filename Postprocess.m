@@ -28,6 +28,8 @@ addpath(eeglabpath)
 eeglab
 
 %% 
+meanAmp = @(w,P,band) mean(P(:, ( (w >= band(1))&(w <= band(2)) )), 2);
+ampDensity = @(w,P,band) sum(P(:, ( (w >= band(1))&(w <= band(2)) )), 2) ./ sum(P,2);
 
 for subj = 1:size(scanfiles,1)
     fn = scanfiles(subj,1).name
@@ -68,14 +70,14 @@ for subj = 1:size(scanfiles,1)
     %}
 
     % Inspect Baseline Spectra 
-    %%{
+    %{
     selVars = {'BaselineOpen', 'BaselineClosed', 'BaselineIce'};
     selRows = {'before experiment', 'after experiment'};
     before_after_spectra(Spec_table, selVars, selRows, fn);
     %}
 
     % Inspect PAF 
-    %%{
+    %{
     selVars = {'BaselineOpen', 'BaselineClosed', 'BaselineIce'};
     selRows = {'before experiment', 'after experiment'};
     PAFheadmap(Spec_table, selVars, selRows, fn);
@@ -115,6 +117,7 @@ for subj = 1:size(scanfiles,1)
     %}
 
     % inspect PAF across epochs (time) 
+    %{
     figure; sgtitle(fn);
     W = height(Epoch_table); H = width(Epoch_table); idx = 1;
     for c = 1:H
@@ -148,8 +151,150 @@ for subj = 1:size(scanfiles,1)
             idx = idx + 1;
         end
     end
-    clear idx H W PAFs chan nchan initTime ev
+    clear idx H W PAFs chan nchan initTime ev cur
+    %}
 
+    % inspect mean beta/theta across epochs (time) 
+    %{
+    fig(3) = figure; sgtitle(fn); 
+    fig(2) = figure; sgtitle(fn);
+    fig(1) = figure; sgtitle(fn);
+    W = height(Epoch_table); H = width(Epoch_table); idx = 1;
+    for c = 1:H
+        for r = 1:W
+            cur = EpochSpec_table{r,c}{:};
+            if length(cur) > 1
+                thetas = cell2mat( arrayfun(@(eegSpec) ...
+                    meanAmp(eegSpec.frequency1side, eegSpec.powerSpectrum, [4,8]), ...
+                    cur(2:end), 'UniformOutput', false) );
+                betas = cell2mat( arrayfun(@(eegSpec) ...
+                    meanAmp(eegSpec.frequency1side, eegSpec.powerSpectrum, [13,30]), ...
+                    cur(2:end), 'UniformOutput', false) );
+                alphas = cell2mat( arrayfun(@(eegSpec) ...
+                    meanAmp(eegSpec.frequency1side, eegSpec.powerSpectrum, [9,11]), ...
+                    cur(2:end), 'UniformOutput', false) );
+                t = arrayfun(@(eeg) mean([eeg.xmin, eeg.xmax]), Epoch_table{r,c}{:}(2:end));
+
+                cur1 = Epoch_table{r,c}{:}(1);
+                figure(fig(1));
+                subplot(H,W,idx); hold on;
+                plot(t',thetas'); ymin = min(thetas(:)); ymax = max(thetas(:));
+                title([Epoch_table.Properties.VariableNames{c},' ',Epoch_table.Properties.RowNames{r}]);
+                xlabel('time (s)'); ylabel('mean \theta (\muV^2 s^2)');
+                    for ev = cur1.event
+                        if ~isempty(ev.latency)
+                            initTime = ev.latency/cur1.srate;
+                            plot(initTime+[0,.001], [ymin,ymax], 'r', 'LineWidth',1.5);
+                            text(initTime, ymin, ev.type);
+                        end
+                    end
+                figure(fig(2));
+                subplot(H,W,idx); hold on;
+                plot(t',betas'); ymin = min(betas(:)); ymax = max(betas(:));
+                title([Epoch_table.Properties.VariableNames{c},' ',Epoch_table.Properties.RowNames{r}]);
+                xlabel('time (s)'); ylabel('mean \beta (\muV^2 s^2)');
+                    for ev = cur1.event
+                        if ~isempty(ev.latency)
+                            initTime = ev.latency/cur1.srate;
+                            plot(initTime+[0,.001], [ymin,ymax], 'r', 'LineWidth',1.5);
+                            text(initTime, ymin, ev.type);
+                        end
+                    end
+                figure(fig(3));
+                subplot(H,W,idx); hold on;
+                %{
+                Y = (thetas./betas); ymin = min(Y(:)); ymax = max(Y(:));
+                plot(t',Y');
+                title([Epoch_table.Properties.VariableNames{c},' ',Epoch_table.Properties.RowNames{r}]);
+                xlabel('time (s)'); ylabel('mean \theta / mean \beta');
+                    for ev = cur1.event
+                        if ~isempty(ev.latency)
+                            initTime = ev.latency/cur1.srate;
+                            plot(initTime+[0,.001], [ymin,ymax], 'r', 'LineWidth',1.5);
+                            text(initTime, ymin, ev.type);
+                        end
+                    end
+                %}
+                plot(t',alphas'); ymin = min(alphas(:)); ymax = max(alphas(:));
+                title([Epoch_table.Properties.VariableNames{c},' ',Epoch_table.Properties.RowNames{r}]);
+                xlabel('time (s)'); ylabel('mean \alpha (\muV^2 s^2)');
+                    for ev = cur1.event
+                        if ~isempty(ev.latency)
+                            initTime = ev.latency/cur1.srate;
+                            plot(initTime+[0,.001], [ymin,ymax], 'r', 'LineWidth',1.5);
+                            text(initTime, ymin, ev.type);
+                        end
+                    end
+            end
+            idx = idx + 1;
+        end
+    end
+    clear idx H W betas thetas alphas t ev f fig initTime cur cur1 Y ymin ymax
+    %}
+
+    fig(3) = figure; sgtitle(fn); 
+    fig(2) = figure; sgtitle(fn);
+    fig(1) = figure; sgtitle(fn);
+    W = height(Epoch_table); H = width(Epoch_table); idx = 1;
+    for c = 1:H
+        for r = 1:W
+            cur = EpochSpec_table{r,c}{:};
+            if length(cur) > 1
+                thetas = cell2mat( arrayfun(@(eegSpec) ...
+                    ampDensity(eegSpec.frequency1side, eegSpec.powerSpectrum, [4,8]), ...
+                    cur(2:end), 'UniformOutput', false) );
+                betas = cell2mat( arrayfun(@(eegSpec) ...
+                    ampDensity(eegSpec.frequency1side, eegSpec.powerSpectrum, [13,30]), ...
+                    cur(2:end), 'UniformOutput', false) );
+                alphas = cell2mat( arrayfun(@(eegSpec) ...
+                    ampDensity(eegSpec.frequency1side, eegSpec.powerSpectrum, [9,11]), ...
+                    cur(2:end), 'UniformOutput', false) );
+                t = arrayfun(@(eeg) mean([eeg.xmin, eeg.xmax]), Epoch_table{r,c}{:}(2:end));
+
+                cur1 = Epoch_table{r,c}{:}(1);
+                figure(fig(1));
+                subplot(H,W,idx); hold on;
+                plot(t',thetas'); 
+                title([Epoch_table.Properties.VariableNames{c},' ',Epoch_table.Properties.RowNames{r}]);
+                xlabel('time (s)'); ylabel('\theta density');
+                    for ev = cur1.event
+                        if ~isempty(ev.latency)
+                            initTime = ev.latency/cur1.srate;
+                            plot(initTime+[0,.001], [0,1], 'r', 'LineWidth',1.5);
+                            text(initTime, 0, ev.type);
+                        end
+                    end
+                figure(fig(2));
+                subplot(H,W,idx); hold on;
+                plot(t',betas'); 
+                title([Epoch_table.Properties.VariableNames{c},' ',Epoch_table.Properties.RowNames{r}]);
+                xlabel('time (s)'); ylabel('\beta density');
+                    for ev = cur1.event
+                        if ~isempty(ev.latency)
+                            initTime = ev.latency/cur1.srate;
+                            plot(initTime+[0,.001], [0,1], 'r', 'LineWidth',1.5);
+                            text(initTime, 0, ev.type);
+                        end
+                    end
+                figure(fig(3));
+                subplot(H,W,idx); hold on;
+                plot(t',alphas'); 
+                title([Epoch_table.Properties.VariableNames{c},' ',Epoch_table.Properties.RowNames{r}]);
+                xlabel('time (s)'); ylabel('\alpha density');
+                    for ev = cur1.event
+                        if ~isempty(ev.latency)
+                            initTime = ev.latency/cur1.srate;
+                            plot(initTime+[0,.001], [0,1], 'r', 'LineWidth',1.5);
+                            text(initTime, 0, ev.type);
+                        end
+                    end
+            end
+            idx = idx + 1;
+        end
+    end
+    clear idx H W betas thetas alphas t ev f fig initTime cur cur1 Y
+
+    clear EEG_table Epoch_table Spec_table EpochSpec_table
 end
 
 %% helper functions
