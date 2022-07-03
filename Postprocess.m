@@ -70,14 +70,14 @@ for subj = 1:size(scanfiles,1)
     %}
 
     % Inspect Baseline Spectra 
-    %{
+    %%{
     selVars = {'BaselineOpen', 'BaselineClosed', 'BaselineIce'};
     selRows = {'before experiment', 'after experiment'};
     before_after_spectra(Spec_table, selVars, selRows, fn);
     %}
 
     % Inspect PAF 
-    %{
+    %%{
     selVars = {'BaselineOpen', 'BaselineClosed', 'BaselineIce'};
     selRows = {'before experiment', 'after experiment'};
     PAFheadmap(Spec_table, selVars, selRows, fn);
@@ -117,7 +117,7 @@ for subj = 1:size(scanfiles,1)
     %}
 
     % inspect PAF across epochs (time) 
-    %{
+    %%{
     figure; sgtitle(fn);
     W = height(Epoch_table); H = width(Epoch_table); idx = 1;
     for c = 1:H
@@ -155,7 +155,7 @@ for subj = 1:size(scanfiles,1)
     %}
 
     % inspect mean beta/theta across epochs (time) 
-    %{
+    %%{
     fig(3) = figure; sgtitle(fn); 
     fig(2) = figure; sgtitle(fn);
     fig(1) = figure; sgtitle(fn);
