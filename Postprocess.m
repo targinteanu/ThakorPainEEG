@@ -88,6 +88,7 @@ for subj = 1:size(scanfiles,1)
     % are EEG epochs)
     %%{
     epochT = 4; % s
+    epoch_dt = 0.5; % s
     Epoch_table = EEG_table;
     EpochSpec_table = Epoch_table;
     for r = 1:height(Epoch_table)
@@ -95,14 +96,14 @@ for subj = 1:size(scanfiles,1)
             cur = EEG_table{r,c}{:};
             if ~isempty(cur)
                 eeg = cur(1); % first / longest duration only
-                t = (eeg.xmin):epochT:(eeg.xmax); 
+                t = (eeg.xmin):epoch_dt:((eeg.xmax)-epochT); 
                 curEpochs = repmat(eeg, size(t)); 
                 curSpecs = repmat(Spec_table{r,c}{:}(1), size(t));
-                for idx = 2:length(t)
-                    curEpoch = pop_select(eeg, 'time', t(idx-[1,0]));
-                        curEpoch.xmin = curEpoch.xmin + t(idx-1);
-                        curEpoch.xmax = curEpoch.xmax + t(idx-1);
-                        curEpoch.times = curEpoch.times + t(idx-1)*1000;
+                for idx = 1:length(t)
+                    curEpoch = pop_select(eeg, 'time', t(idx)+[0,epochT]);
+                        curEpoch.xmin = curEpoch.xmin + t(idx);
+                        curEpoch.xmax = curEpoch.xmax + t(idx);
+                        curEpoch.times = curEpoch.times + t(idx)*1000;
                     curEpochs(idx) = curEpoch;
                     curSpec = fftPlot(curEpoch.data, curEpoch.srate);
                     curSpec.chanlocs = curEpoch.chanlocs; curSpec.nbchan = curEpoch.nbchan;
