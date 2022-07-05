@@ -237,7 +237,7 @@ for subj = 1:size(datafolders,1)
 
             % temp stim: 3
                 startEv = EEG.event(eventType == 3); 
-                excludeTypes = [-1, 3, 5, 9, 12, 13];
+                excludeTypes = [-1, 3, 5, 9, 12:15];
                 toExclude = arrayfun(@(e) sum(e.type == excludeTypes), EEG.event) ;
                 endEv = EEG.event(~toExclude);
                 % order by time 
@@ -255,7 +255,7 @@ for subj = 1:size(datafolders,1)
                     end
                 end
                 % designate before/after ice experiment 
-                excludeTypes = [6, 7, 12, 13];
+                excludeTypes = [6, 7, 8:10, 12, 13];
                 toExclude = false(size(tempEv,1),1);
                 for idx = 1:size(tempEv,1)
                     evBetween = EEG.event( ...
@@ -266,7 +266,7 @@ for subj = 1:size(datafolders,1)
 
             % pin prick: 11
                 startEv = EEG.event(eventType == 11); 
-                excludeTypes = [-1, 11, 5, 9, 12, 13];
+                excludeTypes = [-1, 11, 5, 9, 12:15];
                 toExclude = arrayfun(@(e) sum(e.type == excludeTypes), EEG.event) ;
                 endEv = EEG.event(~toExclude);
                 % order by time 
@@ -284,7 +284,7 @@ for subj = 1:size(datafolders,1)
                     end
                 end
                 % designate before/after ice experiment 
-                excludeTypes = [6, 7, 12, 13];
+                excludeTypes = [6, 7, 8:10, 12, 13];
                 toExclude = false(size(prickEv,1),1);
                 for idx = 1:size(prickEv,1)
                     evBetween = EEG.event( ...
@@ -295,7 +295,7 @@ for subj = 1:size(datafolders,1)
 
             % CPM pin prick: 10
                 startEv = EEG.event(eventType == 10); 
-                excludeTypes = [-1, 10, 5, 9, 12, 13];
+                excludeTypes = [-1, 10, 5, 9, 12:15];
                 toExclude = arrayfun(@(e) sum(e.type == excludeTypes), EEG.event) ;
                 endEv = EEG.event(~toExclude);
                 % order by time 
@@ -316,7 +316,7 @@ for subj = 1:size(datafolders,1)
 
             % pressure: 4 (to 5)
                 startEv = EEG.event(eventType == 4); 
-                excludeTypes = [-1, 4, 5, 9, 12, 13];
+                excludeTypes = [-1, 4, 5, 9, 12:15];
                 toExclude = arrayfun(@(e) sum(e.type == excludeTypes), EEG.event) ;
                 endEv = EEG.event(~toExclude);
                 % order by time 
@@ -334,7 +334,7 @@ for subj = 1:size(datafolders,1)
                     end
                 end
                 % designate before/after ice experiment 
-                excludeTypes = [6, 7, 12, 13];
+                excludeTypes = [6, 7, 8:10, 12, 13];
                 toExclude = false(size(pressEv,1),1);
                 for idx = 1:size(pressEv,1)
                     evBetween = EEG.event( ...
@@ -345,7 +345,7 @@ for subj = 1:size(datafolders,1)
 
             % CPM pressure: 8 (to 9)
                 startEv = EEG.event(eventType == 8); 
-                excludeTypes = [-1, 8, 5, 9, 12, 13];
+                excludeTypes = [-1, 8, 5, 9, 12:15];
                 toExclude = arrayfun(@(e) sum(e.type == excludeTypes), EEG.event) ;
                 endEv = EEG.event(~toExclude);
                 % order by time 
