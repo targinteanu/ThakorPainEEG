@@ -38,7 +38,7 @@ for ps = plotSel
         
         meanAmp = @(w,P,band) mean(P(:, ( (w >= band(1))&(w <= band(2)) )), 2);
         ampDensity = @(w,P,band) sum(P(:, ( (w >= band(1))&(w <= band(2)) )), 2) ./ sum(P,2);
-        fcnOpts = {@(w,P,band) peakFreq(P,w,band), meanAmp, ampDensity};
+        fcnOpts = {@(w,P,band) peakFreq(w,P,band), meanAmp, ampDensity};
         fcnOptNames = {'Peak Frequency in Band', 'Mean Band Power', 'Band Relative Density'};
         fcnSel = listdlg_selectWrapper(fcnOptNames, 'single'); 
         fcnSelName = fcnOptNames{fcnSel};
@@ -133,7 +133,7 @@ function fig1 = headmap(tbl, sttl, fcnToMap, maplims, vars, rows)
                 nchan = eeg.nbchan; chlocs = eeg.chanlocs;
                 P = eeg.powerSpectrum; w = eeg.frequency1side;
 
-                PAF = arrayfun(@(c) fcnToMap(P(c,:),w), 1:nchan);
+                PAF = arrayfun(@(c) fcnToMap(w,P(c,:)), 1:nchan);
     
                 topoplot(PAF, chlocs, 'maplimits', maplims); colorbar;
 
