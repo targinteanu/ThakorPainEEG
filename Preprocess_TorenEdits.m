@@ -273,7 +273,7 @@ for subj = 1:size(datafolders,1)
                     end
                 end
                 % designate before/after ice experiment 
-                excludeTypes = [6, 7, 12, 13];
+                excludeTypes = [6, 7, 8:10, 12, 13];
                 toExclude = false(size(tempEv,1),1);
                 for idx = 1:size(tempEv,1)
                     evBetween = EEG.event( ...
@@ -302,7 +302,7 @@ for subj = 1:size(datafolders,1)
                     end
                 end
                 % designate before/after ice experiment 
-                excludeTypes = [6, 7, 12, 13];
+                excludeTypes = [6, 7, 8:10, 12, 13];
                 toExclude = false(size(prickEv,1),1);
                 for idx = 1:size(prickEv,1)
                     evBetween = EEG.event( ...
@@ -352,7 +352,7 @@ for subj = 1:size(datafolders,1)
                     end
                 end
                 % designate before/after ice experiment 
-                excludeTypes = [6, 7, 12, 13];
+                excludeTypes = [6, 7, 8:10, 12, 13];
                 toExclude = false(size(pressEv,1),1);
                 for idx = 1:size(pressEv,1)
                     evBetween = EEG.event( ...
