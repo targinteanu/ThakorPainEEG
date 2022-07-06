@@ -5,9 +5,12 @@ eeglab
 
 %% Set Filepaths
 clear 
+clear global
 
 home = '/Users/torenarginteanu/Documents/MATLAB/ThakorPainEEG';
 cd(home)
+load("BrainwaveFrequencyTable.mat");
+global BandTableHz
 
 [fn, fp] = uigetfile('*postprocessed.mat'); 
 load([fp, '/', fn]);
@@ -23,18 +26,7 @@ plotSel = listdlg_selectWrapper(plotOpts, 'multiple');
 for ps = plotSel
     if ps == 1
         % pick frequency band range and function 
-
-        freqOpts = {'alpha', 'beta', 'gamma', 'delta', 'theta', 'custom'};
-        bnd = listdlg_selectWrapper(freqOpts, 'single');
-        if bnd == length(freqOpts)
-            % custom 
-            bnd = inputdlg({'Minimum Frequency (Hz):', 'Maximum Frequency (Hz):'},...
-                'Specify Custom Frequency Band:');
-            bndname = [bnd{1},'-',bnd{2},'Hz'];
-            bnd = arrayfun(@(i) str2double(bnd{i}), 1:length(bnd));
-        else
-            bnd = freqOpts{bnd}; bndname = bnd;
-        end
+        [bnd,bndname] = pickFrequency;
         
         meanAmp = @(w,P,band) mean(P(:, ( (w >= band(1))&(w <= band(2)) )), 2);
         ampDensity = @(w,P,band) sum(P(:, ( (w >= band(1))&(w <= band(2)) )), 2) ./ sum(P,2);
@@ -45,19 +37,7 @@ for ps = plotSel
         if fcnSel == 1
             % map limits based on band
             if isa(bnd,'char') | isa(bnd,'string')
-                if strcmpi(bnd,'alpha') | strcmpi(bnd,'a')
-                    maplims = [9,11];
-                elseif strcmpi(bnd,'beta') | strcmpi(bnd,'b')
-                    maplims = [13,30];
-                elseif strcmpi(bnd,'theta') | strcmpi(bnd,'t')
-                    maplims = [4,8];
-                elseif strcmpi(bnd,'gamma') | strcmpi(bnd,'g')
-                    maplims = [30,80];
-                elseif strcmpi(bnd,'delta') | strcmpi(bnd,'d')
-                    maplims = [.5,4];
-                else
-                    maplims = 'maxmin';
-                end
+                maplims = band2freqs(bnd, BandTableHz);
             else
                 maplims = bnd;
             end
@@ -84,19 +64,41 @@ end
 
 %% helper functions 
 
-function [sel, listOut] = listdlg_selectWrapper(list, SelectionMode)
-    [sel, ok] = listdlg('ListString',list, 'SelectionMode',SelectionMode);
+function [bandrange, bandname] = pickFrequency()
+    global BandTableHz
+    freqOpts = [BandTableHz.Properties.RowNames; 'custom'];
+    bandrange = listdlg_selectWrapper(freqOpts, 'single', 'Specify Frequency Band');
+    if bandrange == length(freqOpts)
+        % custom 
+        bandrange = inputdlg({'Minimum Frequency (Hz):', 'Maximum Frequency (Hz):'},...
+            'Specify Custom Frequency Band:');
+        bandname = [bandrange{1},'-',bandrange{2},'Hz'];
+        bandrange = arrayfun(@(i) str2double(bandrange{i}), 1:length(bandrange));
+    else
+        bandrange = freqOpts{bandrange}; bandname = bandrange;
+    end
+end
+
+function [sel, listOut] = listdlg_selectWrapper(list, SelectionMode, PromptString)
+    if nargin < 3
+        PromptString = [];
+        if nargin < 2
+            SelectionMode = 'multiple';
+        end
+    end
+    
+    [sel, ok] = listdlg('ListString',list, 'SelectionMode',SelectionMode, 'PromptString',PromptString);
     while ~ok
         if strcmp(SelectionMode,'multiple')
             sel = questdlg('select all?');
             ok = strcmp(sel, 'Yes');
             if ~ok
-                [sel, ok] = listdlg('ListString',list, 'SelectionMode',SelectionMode);
+                [sel, ok] = listdlg('ListString',list, 'SelectionMode',SelectionMode, 'PromptString',PromptString);
             else
                 sel = 1:length(list);
             end
         else
-            [sel, ok] = listdlg('ListString',list, 'SelectionMode',SelectionMode);
+            [sel, ok] = listdlg('ListString',list, 'SelectionMode',SelectionMode, 'PromptString',PromptString);
         end
     end
     listOut = list(sel);
