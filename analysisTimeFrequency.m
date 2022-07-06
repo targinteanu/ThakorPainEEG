@@ -26,7 +26,7 @@ if sum(plotSel == 1:3)
     fcn0 = fcnOpts{plotSel};
     if sum(plotSel == [2,3])
         fcn = @(Spec, EEG) frqFcnEpoch(Spec, EEG, @(w,P) fcn0(w,P,bnd));
-        if plotsel == 3
+        if plotSel == 3
             % Density 
             ylims = [0 1];
         else
@@ -58,7 +58,7 @@ BL = cell2mat(reshape(BL,[],1));
                                     'multiple', 'Specify Variable(s)');
 [~,testRows] = listdlg_selectWrapper(Epoch_table.Properties.RowNames, ...
                                     'multiple', 'Specify Variable(s)');
-%%
+
 [TestPlot_table, Plot_table] = ...
     testTbl(AllPlot_table, BL, Epoch_table, {fn, yname}, testVars, testRows);
 
@@ -149,7 +149,7 @@ function [tblOut, toTestTbl, epochsTbl, fig] = ...
 
                 subplot(H,W,idx);
                 ttl = [toTestTbl.Properties.VariableNames{c},' ',toTestTbl.Properties.RowNames{r}];
-                plotWithEvents(curTime, curTestOut, curEEG, [], ttl, 'p');
+                plotWithEvents(curTime, curTestOut, curEEG, [0,1], ttl, 'p');
 
             end
             idx = idx + 1;
@@ -231,6 +231,7 @@ function [times,Y] = frqFcnEpoch(epoch_Spec, epoch_EEG, fcn)
         fcn(eegSpec.frequency1side, eegSpec.powerSpectrum), ...
         epoch_Spec(2:end), 'UniformOutput', false) );
     times = arrayfun(@(eeg) mean([eeg.xmin, eeg.xmax]), epoch_EEG(2:end));
+    times = repmat(times,size(Y,1),1);
     times = times'; Y = Y';
 end
 
