@@ -54,6 +54,14 @@ BL_table = makeSubtbl(AllPlot_table, blVars, blRows);
 BL = BL_table{:,:};
 BL = cell2mat(reshape(BL,[],1));
 
+[~,testVars] = listdlg_selectWrapper(Epoch_table.Properties.VariableNames, ...
+                                    'multiple', 'Specify Variable(s)');
+[~,testRows] = listdlg_selectWrapper(Epoch_table.Properties.RowNames, ...
+                                    'multiple', 'Specify Variable(s)');
+%%
+[TestPlot_table, Plot_table] = ...
+    testTbl(AllPlot_table, BL, Epoch_table, ylims, yname, fn, testVars, testRows);
+
 %% helper functions 
 
 function subtbl = makeSubtbl(tbl, vars, rows)
@@ -103,7 +111,58 @@ end
 
 %% key functions 
 
-function [tblOut, fig] = plotTbl(epochTbl, epochSpecTbl, fcn, ybound, yname, sttl, vars, rows)
+function [tblOut, toTestTbl, epochsTbl, fig] = ...
+    testTbl(toTestTbl, baseline, epochsTbl, ybound, yname, sttl, vars, rows)
+    if nargin > 6
+        toTestTbl = makeSubtbl(toTestTbl, vars, rows);
+        epochsTbl = makeSubtbl(epochsTbl, vars, rows);
+    elseif nargin < 6
+        sttl = '';
+        if nargin < 5
+            yname = '';
+            if nargin < 4
+                ybound = [];
+            end
+        end
+    end
+
+    tblOut = toTestTbl; 
+    fig(1) = figure; sgtitle(sttl); fig(2) = figure; sgtitle(sttl);
+    W = height(toTestTbl); H = width(toTestTbl); idx = 1;
+    for c = 1:H
+        for r = 1:W
+            if ~isempty(toTestTbl{r,c}{1})
+                curVar = toTestTbl{r,c}{1}(:,:,2);
+                curTime = toTestTbl{r,c}{1}(:,:,1);
+                curEEG = epochsTbl{r,c}{1}(1);
+                curTestOut = zeros(size(curVar));
+                for chan = 1:size(curVar,2)
+                    %[~,y] = arrayfun(@(m) ttest(baseline(:,chan),m), curVar(:,chan));
+                    %curTestOut(:,chan) = y;
+                    for t = 1:size(curVar,1)
+                        [~,p] = ttest(baseline(:,chan),curVar(t,chan));
+                        curTestOut(t,chan) = p;
+                    end
+                end
+                tblOut{r,c} = {cat(3,curTime,curTestOut)};
+
+                figure(fig(1));
+                subplot(H,W,idx);
+                ttl = [toTestTbl.Properties.VariableNames{c},' ',toTestTbl.Properties.RowNames{r}];
+                plotWithEvents(curTime, curTestOut, curEEG, [], ttl, 'p');
+
+                figure(fig(2)); 
+                subplot(H,W,idx);
+                ttl = [toTestTbl.Properties.VariableNames{c},' ',toTestTbl.Properties.RowNames{r}];
+                plotWithEvents(curTime, curVar, curEEG, ybound, ttl, yname);
+            end
+            idx = idx + 1;
+        end
+    end
+end
+
+function [tblOut, epochTbl, epochSpecTbl, fig] = ...
+    plotTbl(epochTbl, epochSpecTbl, fcn, ybound, yname, sttl, vars, rows)
     if nargin > 6
         epochTbl     = makeSubtbl(epochTbl,     vars, rows);
         epochSpecTbl = makeSubtbl(epochSpecTbl, vars, rows);
