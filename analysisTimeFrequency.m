@@ -125,6 +125,7 @@ function [tblOut, toTestTbl, epochsTbl, fig] = ...
             end
         end
     end
+    baseline = baseline(:,:,2);
 
     tblOut = toTestTbl; 
     fig(1) = figure; sgtitle(sttl); fig(2) = figure; sgtitle(sttl);
@@ -137,8 +138,6 @@ function [tblOut, toTestTbl, epochsTbl, fig] = ...
                 curEEG = epochsTbl{r,c}{1}(1);
                 curTestOut = zeros(size(curVar));
                 for chan = 1:size(curVar,2)
-                    %[~,y] = arrayfun(@(m) ttest(baseline(:,chan),m), curVar(:,chan));
-                    %curTestOut(:,chan) = y;
                     for t = 1:size(curVar,1)
                         [~,p] = ttest(baseline(:,chan),curVar(t,chan));
                         curTestOut(t,chan) = p;
@@ -154,7 +153,8 @@ function [tblOut, toTestTbl, epochsTbl, fig] = ...
                 figure(fig(2)); 
                 subplot(H,W,idx);
                 ttl = [toTestTbl.Properties.VariableNames{c},' ',toTestTbl.Properties.RowNames{r}];
-                plotWithEvents(curTime, curVar, curEEG, ybound, ttl, yname);
+                Y = curVar - mean(baseline,1);
+                plotWithEvents(curTime, Y, curEEG, [], ttl, yname);
             end
             idx = idx + 1;
         end
