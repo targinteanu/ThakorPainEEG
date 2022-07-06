@@ -1,6 +1,6 @@
 function [CoG, maxval, pklocs] = peakFreq(w,P, bnd, tbl)
 
-    if nargin < 2 
+    if nargin < 4 
         if ~exist('BandTableHz')
             load('BrainwaveFrequencyTable.mat');
             global BandTableHz
