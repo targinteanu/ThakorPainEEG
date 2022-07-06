@@ -60,7 +60,7 @@ BL = cell2mat(reshape(BL,[],1));
                                     'multiple', 'Specify Variable(s)');
 %%
 [TestPlot_table, Plot_table] = ...
-    testTbl(AllPlot_table, BL, Epoch_table, ylims, yname, fn, testVars, testRows);
+    testTbl(AllPlot_table, BL, Epoch_table, {fn, yname}, testVars, testRows);
 
 %% helper functions 
 
@@ -112,23 +112,25 @@ end
 %% key functions 
 
 function [tblOut, toTestTbl, epochsTbl, fig] = ...
-    testTbl(toTestTbl, baseline, epochsTbl, ybound, yname, sttl, vars, rows)
-    if nargin > 6
+    testTbl(toTestTbl, baseline, epochsTbl, sttl, vars, rows)
+    if nargin > 4
         toTestTbl = makeSubtbl(toTestTbl, vars, rows);
         epochsTbl = makeSubtbl(epochsTbl, vars, rows);
-    elseif nargin < 6
+    elseif nargin < 4
         sttl = '';
+        %{
         if nargin < 5
             yname = '';
             if nargin < 4
                 ybound = [];
             end
         end
+        %}
     end
     baseline = baseline(:,:,2);
 
     tblOut = toTestTbl; 
-    fig(1) = figure; sgtitle(sttl); fig(2) = figure; sgtitle(sttl);
+    fig = figure; sgtitle(sttl); 
     W = height(toTestTbl); H = width(toTestTbl); idx = 1;
     for c = 1:H
         for r = 1:W
@@ -145,16 +147,10 @@ function [tblOut, toTestTbl, epochsTbl, fig] = ...
                 end
                 tblOut{r,c} = {cat(3,curTime,curTestOut)};
 
-                figure(fig(1));
                 subplot(H,W,idx);
                 ttl = [toTestTbl.Properties.VariableNames{c},' ',toTestTbl.Properties.RowNames{r}];
                 plotWithEvents(curTime, curTestOut, curEEG, [], ttl, 'p');
 
-                figure(fig(2)); 
-                subplot(H,W,idx);
-                ttl = [toTestTbl.Properties.VariableNames{c},' ',toTestTbl.Properties.RowNames{r}];
-                Y = curVar - mean(baseline,1);
-                plotWithEvents(curTime, Y, curEEG, [], ttl, yname);
             end
             idx = idx + 1;
         end
