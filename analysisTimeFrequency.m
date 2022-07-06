@@ -8,18 +8,97 @@ clear
 
 home = '/Users/torenarginteanu/Documents/MATLAB/ThakorPainEEG';
 cd(home)
+load("BrainwaveFrequencyTable.mat");
+global BandTableHz
 
 [fn, fp] = uigetfile('*postprocessed.mat'); 
 load([fp, '/', fn]);
 
-%% main plotting 
+%% first plot
 meanAmp = @(w,P,band) mean(P(:, ( (w >= band(1))&(w <= band(2)) )), 2);
 ampDensity = @(w,P,band) sum(P(:, ( (w >= band(1))&(w <= band(2)) )), 2) ./ sum(P,2);
+plotOpts = {'Peak Freq (Hz)', 'Band Mean (\muV^2 s^2)', 'Band Density'};
+fcnOpts = {@(w,P,band) peakFreq(w,P,band), meanAmp, ampDensity};
+plotSel = listdlg_selectWrapper(plotOpts, 'single', 'Plot What?');
+if sum(plotSel == 1:3)
+    [bnd,bndname] = pickFrequency();
+    yname = [bndname,' ',plotOpts{plotSel}];
+    fcn0 = fcnOpts{plotSel};
+    if sum(plotSel == [2,3])
+        fcn = @(Spec, EEG) frqFcnEpoch(Spec, EEG, @(w,P) fcn0(w,P,bnd));
+        if plotsel == 3
+            % Density 
+            ylims = [0 1];
+        else
+            ylims = [];
+        end
+    elseif plotSel == 1
+        % peak freq
+        fcn = @(Spec, EEG) peakFreqEpoch(Spec, EEG, bnd);
+        if isa(bnd,'char') | isa(bnd,'string')
+            ylims = band2freqs(bnd, BandTableHz);
+        else
+            ylims = bnd;
+        end
+    end
+end
+AllPlot_table = plotTbl(Epoch_table, EpochSpec_table, fcn, ylims, ...
+    yname, fn);
+
+%% select baseline and compare 
+[~,blVars] = listdlg_selectWrapper(Epoch_table.Properties.VariableNames, ...
+                                    'multiple', 'Specify Baseline(s)');
+[~,blRows] = listdlg_selectWrapper(Epoch_table.Properties.RowNames, ...
+                                    'multiple', 'Specify Baseline(s)');
+BL_table = makeSubtbl(AllPlot_table, blVars, blRows);
+BL = BL_table{:,:};
+BL = cell2mat(reshape(BL,[],1));
 
 %% helper functions 
+
 function subtbl = makeSubtbl(tbl, vars, rows)
     subtbl = tbl(ismember(tbl.Properties.RowNames, rows), ...
                  ismember(tbl.Properties.VariableNames, vars));
+end
+
+function [bandrange, bandname] = pickFrequency()
+    global BandTableHz
+    freqOpts = [BandTableHz.Properties.RowNames; 'custom'];
+    bandrange = listdlg_selectWrapper(freqOpts, 'single', 'Specify Frequency Band');
+    if bandrange == length(freqOpts)
+        % custom 
+        bandrange = inputdlg({'Minimum Frequency (Hz):', 'Maximum Frequency (Hz):'},...
+            'Specify Custom Frequency Band:');
+        bandname = [bandrange{1},'-',bandrange{2},'Hz'];
+        bandrange = arrayfun(@(i) str2double(bandrange{i}), 1:length(bandrange));
+    else
+        bandrange = freqOpts{bandrange}; bandname = ['\',bandrange];
+    end
+end
+
+function [sel, listOut] = listdlg_selectWrapper(list, SelectionMode, PromptString)
+    if nargin < 3
+        PromptString = [];
+        if nargin < 2
+            SelectionMode = 'multiple';
+        end
+    end
+
+    [sel, ok] = listdlg('ListString',list, 'SelectionMode',SelectionMode, 'PromptString',PromptString);
+    while ~ok
+        if strcmp(SelectionMode,'multiple')
+            sel = questdlg('select all?');
+            ok = strcmp(sel, 'Yes');
+            if ~ok
+                [sel, ok] = listdlg('ListString',list, 'SelectionMode',SelectionMode, 'PromptString',PromptString);
+            else
+                sel = 1:length(list);
+            end
+        else
+            [sel, ok] = listdlg('ListString',list, 'SelectionMode',SelectionMode, 'PromptString',PromptString);
+        end
+    end
+    listOut = list(sel);
 end
 
 %% key functions 
@@ -47,10 +126,10 @@ function [tblOut, fig] = plotTbl(epochTbl, epochSpecTbl, fcn, ybound, yname, stt
             if length(curEpoc) > 1
                 EEG = curEpoc(1);
                 [t,Y] = fcn(curSpec, curEpoc);
-                tblOut{r,c} = {EEG,t,Y};
+                tblOut{r,c} = {cat(3,t,Y)};
                 subplot(H,W,idx); 
                 ttl = [epochTbl.Properties.VariableNames{c},' ',epochTbl.Properties.RowNames{r}];
-                plotWithEvents(t, Y, EEG.event, ybound, ttl, yname);
+                plotWithEvents(t, Y, EEG, ybound, ttl, yname);
             elseif ~isempty(curEpoc)
                 tblOut{r,c} = {curEpoc(1),[],[]};
             end
@@ -60,21 +139,23 @@ function [tblOut, fig] = plotTbl(epochTbl, epochSpecTbl, fcn, ybound, yname, stt
 end
 
 
-function plt = plotWithEvents(t, Y, event, ybound, ttl, ylbl)
+function plt = plotWithEvents(t, Y, EEG, ybound, ttl, ylbl)
     if nargin < 6
         ylbl = '';
         if nargin < 5
             ttl = '';
             if nargin < 4
                 ybound = [];
-                if nargin < 3
-                    event = [];
-                end
             end
         end
     end
     if isempty(ybound)
         ybound = [min(Y(:)), max(Y(:))];
+    end
+    if (nargin < 3) | isempty(EEG)
+        event = []; srate = 1;
+    else
+        event = EEG.event; srate = EEG.srate;
     end
 
     plt = plot(t,Y); hold on;
@@ -82,7 +163,7 @@ function plt = plotWithEvents(t, Y, event, ybound, ttl, ylbl)
     for ev = event
         lbl_sw = false;
         if ~isempty(ev.latency) & ~strcmp(ev.type,'boundary')
-            initTime = ev.latency/cur1.srate;
+            initTime = ev.latency/srate;
             plot(initTime+[0,0], ybound, 'r', 'LineWidth',1.5);
             text(initTime, ybound(lbl_sw+1), ev.type);
             lbl_sw = ~lbl_sw;
