@@ -25,6 +25,7 @@ if sum(plotSel == 1:3)
     yname = [bndname,' ',plotOpts{plotSel}];
     fcn0 = fcnOpts{plotSel};
     if sum(plotSel == [2,3])
+        bnd = band2freqs(bnd, BandTableHz);
         fcn = @(Spec, EEG) frqFcnEpoch(Spec, EEG, @(w,P) fcn0(w,P,bnd));
         if plotSel == 3
             % Density 
@@ -34,7 +35,7 @@ if sum(plotSel == 1:3)
         end
     elseif plotSel == 1
         % peak freq
-        fcn = @(Spec, EEG) peakFreqEpoch(Spec, EEG, bnd);
+        fcn = @(Spec, EEG) peakFreqEpoch(Spec, EEG, bnd, BandTableHz);
         if isa(bnd,'char') | isa(bnd,'string')
             ylims = band2freqs(bnd, BandTableHz);
         else
@@ -213,7 +214,7 @@ function plt = plotWithEvents(t, Y, EEG, ybound, ttl, ylbl)
         event = EEG.event; srate = EEG.srate;
     end
 
-    plt = plot(t,Y); hold on;
+    plt = plot(t,Y); hold on; ylim(ybound);
     title(ttl); xlabel('time (s)'); ylabel(ylbl);
     for ev = event
         lbl_sw = false;
@@ -235,14 +236,15 @@ function [times,Y] = frqFcnEpoch(epoch_Spec, epoch_EEG, fcn)
     times = times'; Y = Y';
 end
 
-function [times,Freq] = peakFreqEpoch(epoch_Spec, epoch_EEG, bnd)
+function [times,Freq] = peakFreqEpoch(epoch_Spec, epoch_EEG, bnd, tbl)
 % inspect peakFreq across epochs (time)
     % index 1 = original 
     nchan = epoch_Spec(1).nbchan;
     PAFs = zeros(nchan, length(epoch_Spec)-1, 2);
     for chan = 1:nchan
         PAFs(chan,:,1) = arrayfun(@(eegSpec) ...
-            peakFreq(eegSpec.frequency1side, eegSpec.powerSpectrum(chan,:), bnd), ...
+            peakFreq(eegSpec.frequency1side, eegSpec.powerSpectrum(chan,:), ...
+            bnd, tbl), ...
             epoch_Spec(2:end));
         PAFs(chan,:,2) = arrayfun(@(eeg) ...
             mean([eeg.xmin, eeg.xmax]), epoch_EEG(2:end));
