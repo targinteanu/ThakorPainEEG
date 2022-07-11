@@ -41,6 +41,7 @@ for subj = 1:size(scanfiles,1)
 
     % order by longest duration 
     %%{
+    disp('Reordering by duration')
     for r = 1:height(EEG_table)
         for c = 1:width(EEG_table)
             cur = EEG_table{r,c}{:};
@@ -56,6 +57,7 @@ for subj = 1:size(scanfiles,1)
 
     % table of frequency spectra 
     %%{
+    disp('Obtaining frequency spectra')
     Spec_table = EEG_table;
     for r = 1:height(Spec_table)
         for c = 1:width(Spec_table)
@@ -77,17 +79,21 @@ for subj = 1:size(scanfiles,1)
     % (table of vectors where first element is original EEG and subsequent
     % are EEG epochs)
     %%{
+    disp('Segmenting epochs')
     Epoch_table = EEG_table;
     EpochSpec_table = Epoch_table;
     for r = 1:height(Epoch_table)
         for c = 1:width(Epoch_table)
             cur = EEG_table{r,c}{:};
+            disp([EEG_table.Properties.VariableNames{c},' ',EEG_table.Properties.RowNames{r}])
             if ~isempty(cur)
                 eeg = cur(1); % first / longest duration only
                 t = (eeg.xmin):epoch_dt:((eeg.xmax)-epochT); 
                 curEpochs = repmat(eeg, size(t)); 
                 curSpecs = repmat(Spec_table{r,c}{:}(1), size(t));
                 for idx = 1:length(t)
+                    disp(['Epoch ',num2str(idx),' of ',num2str(length(t)),...
+                        ' (',num2str(100*idx/length(t),3),'%)'])
                     curEpoch = pop_select(eeg, 'time', t(idx)+[0,epochT]);
                         curEpoch.xmin = curEpoch.xmin + t(idx);
                         curEpoch.xmax = curEpoch.xmax + t(idx);

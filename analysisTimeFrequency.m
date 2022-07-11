@@ -43,7 +43,7 @@ if sum(plotSel == 1:3)
         end
     end
 end
-AllPlot_table = plotTbl(Epoch_table, EpochSpec_table, fcn, ylims, ...
+AllPlot_table = plotTbl(EEG_table, Epoch_table, EpochSpec_table, fcn, ylims, ...
     yname, fn);
 
 %% select baseline and compare 
@@ -61,7 +61,7 @@ BL = cell2mat(reshape(BL,[],1));
                                     'multiple', 'Specify Variable(s)');
 
 [TestPlot_table, Plot_table] = ...
-    testTbl(AllPlot_table, BL, Epoch_table, {fn, yname}, testVars, testRows);
+    testTbl(AllPlot_table, BL, EEG_table, {fn, yname}, testVars, testRows);
 
 %% helper functions 
 
@@ -112,11 +112,11 @@ end
 
 %% key functions 
 
-function [tblOut, toTestTbl, epochsTbl, fig] = ...
-    testTbl(toTestTbl, baseline, epochsTbl, sttl, vars, rows)
+function [tblOut, toTestTbl, eegTbl, fig] = ...
+    testTbl(toTestTbl, baseline, eegTbl, sttl, vars, rows)
     if nargin > 4
         toTestTbl = makeSubtbl(toTestTbl, vars, rows);
-        epochsTbl = makeSubtbl(epochsTbl, vars, rows);
+        eegTbl = makeSubtbl(eegTbl, vars, rows);
     elseif nargin < 4
         sttl = '';
         %{
@@ -138,7 +138,7 @@ function [tblOut, toTestTbl, epochsTbl, fig] = ...
             if ~isempty(toTestTbl{r,c}{1})
                 curVar = toTestTbl{r,c}{1}(:,:,2);
                 curTime = toTestTbl{r,c}{1}(:,:,1);
-                curEEG = epochsTbl{r,c}{1}(1);
+                curEEG = eegTbl{r,c}{1}(1);
                 curTestOut = zeros(size(curVar));
                 for chan = 1:size(curVar,2)
                     for t = 1:size(curVar,1)
@@ -158,16 +158,17 @@ function [tblOut, toTestTbl, epochsTbl, fig] = ...
     end
 end
 
-function [tblOut, epochTbl, epochSpecTbl, fig] = ...
-    plotTbl(epochTbl, epochSpecTbl, fcn, ybound, yname, sttl, vars, rows)
-    if nargin > 6
+function [tblOut, eegTbl, epochTbl, epochSpecTbl, fig] = ...
+    plotTbl(eegTbl, epochTbl, epochSpecTbl, fcn, ybound, yname, sttl, vars, rows)
+    if nargin > 7
+        eegTbl       = makeSubtbl(eegTbl,       vars, rows);
         epochTbl     = makeSubtbl(epochTbl,     vars, rows);
         epochSpecTbl = makeSubtbl(epochSpecTbl, vars, rows);
-    elseif nargin < 6
+    elseif nargin < 7
         sttl = '';
-        if nargin < 5
+        if nargin < 6
             yname = '';
-            if nargin < 4
+            if nargin < 5
                 ybound = [];
             end
         end
@@ -179,15 +180,16 @@ function [tblOut, epochTbl, epochSpecTbl, fig] = ...
         for r = 1:W
             curSpec = epochSpecTbl{r,c}{:};
             curEpoc = epochTbl{r,c}{:};
+            curEEG  = eegTbl{r,c}{:};
             if length(curEpoc) > 1
-                EEG = curEpoc(1);
+                EEG = curEEG(1);
                 [t,Y] = fcn(curSpec, curEpoc);
                 tblOut{r,c} = {cat(3,t,Y)};
                 subplot(H,W,idx); 
                 ttl = [epochTbl.Properties.VariableNames{c},' ',epochTbl.Properties.RowNames{r}];
                 plotWithEvents(t, Y, EEG, ybound, ttl, yname);
             elseif ~isempty(curEpoc)
-                tblOut{r,c} = {curEpoc(1),[],[]};
+                tblOut{r,c} = {[]};
             end
             idx = idx + 1;
         end
@@ -214,7 +216,7 @@ function plt = plotWithEvents(t, Y, EEG, ybound, ttl, ylbl)
         event = EEG.event; srate = EEG.srate;
     end
 
-    plt = plot(t,Y); hold on; ylim(ybound);
+    plt = plot(t,Y,'.'); hold on; ylim(ybound);
     title(ttl); xlabel('time (s)'); ylabel(ylbl);
     for ev = event
         lbl_sw = false;
