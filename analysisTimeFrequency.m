@@ -218,8 +218,8 @@ function plt = plotWithEvents(t, Y, EEG, ybound, ttl, ylbl)
 
     plt = plot(t,Y,'.'); hold on; ylim(ybound);
     title(ttl); xlabel('time (s)'); ylabel(ylbl);
+    lbl_sw = false;
     for ev = event
-        lbl_sw = false;
         if ~isempty(ev.latency) & ~strcmp(ev.type,'boundary')
             initTime = ev.latency/srate;
             plot(initTime+[0,0], ybound, 'r', 'LineWidth',1.5);
