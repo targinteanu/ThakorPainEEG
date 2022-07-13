@@ -390,20 +390,20 @@ for subj = 1:size(datafolders,1)
 
             % extract EEG from events 
             EEG_table = table('RowNames',{'before experiment','after experiment','CPM'});
-            EEG_table.BaselineOpen(1) = extractBetweenEvents(EEG, openEvInit);
-            EEG_table.BaselineOpen(2) = extractBetweenEvents(EEG, openEvFin);
-            EEG_table.BaselineClosed(1) = extractBetweenEvents(EEG, closedEvInit);
-            EEG_table.BaselineClosed(2) = extractBetweenEvents(EEG, closedEvFin);
-            EEG_table.BaselineIce(1) = extractBetweenEvents(EEG, iceEvInit);
-            EEG_table.BaselineIce(2) = extractBetweenEvents(EEG, iceEvFin);
-            EEG_table.TempStim(1) = extractBetweenEvents(EEG, tempEvInit);
-            EEG_table.TempStim(2) = extractBetweenEvents(EEG, tempEvFin);
-            EEG_table.PinPrick(1) = extractBetweenEvents(EEG, prickEvInit);
-            EEG_table.PinPrick(2) = extractBetweenEvents(EEG, prickEvFin);
-            EEG_table.PinPrick(3) = extractBetweenEvents(EEG, prickCpmEv);
-            EEG_table.Pressure(1) = extractBetweenEvents(EEG, pressEvInit);
-            EEG_table.Pressure(2) = extractBetweenEvents(EEG, pressEvFin);
-            EEG_table.Pressure(3) = extractBetweenEvents(EEG, pressCpmEv);
+            EEG_table.BaselineOpen(1) = extractBetweenEvents(EEG, uniqueEvents(openEvInit));
+            EEG_table.BaselineOpen(2) = extractBetweenEvents(EEG, uniqueEvents(openEvFin));
+            EEG_table.BaselineClosed(1) = extractBetweenEvents(EEG, uniqueEvents(closedEvInit));
+            EEG_table.BaselineClosed(2) = extractBetweenEvents(EEG, uniqueEvents(closedEvFin));
+            EEG_table.BaselineIce(1) = extractBetweenEvents(EEG, uniqueEvents(iceEvInit));
+            EEG_table.BaselineIce(2) = extractBetweenEvents(EEG, uniqueEvents(iceEvFin));
+            EEG_table.TempStim(1) = extractBetweenEvents(EEG, uniqueEvents(tempEvInit));
+            EEG_table.TempStim(2) = extractBetweenEvents(EEG, uniqueEvents(tempEvFin));
+            EEG_table.PinPrick(1) = extractBetweenEvents(EEG, uniqueEvents(prickEvInit));
+            EEG_table.PinPrick(2) = extractBetweenEvents(EEG, uniqueEvents(prickEvFin));
+            EEG_table.PinPrick(3) = extractBetweenEvents(EEG, uniqueEvents(prickCpmEv));
+            EEG_table.Pressure(1) = extractBetweenEvents(EEG, uniqueEvents(pressEvInit));
+            EEG_table.Pressure(2) = extractBetweenEvents(EEG, uniqueEvents(pressEvFin));
+            EEG_table.Pressure(3) = extractBetweenEvents(EEG, uniqueEvents(pressCpmEv));
 
             % -------------------------------------------------
 
@@ -412,4 +412,20 @@ for subj = 1:size(datafolders,1)
             save(temp_file, 'EEG', 'EEG_table', 'rejected', 'pcaComp', 'pcaScr', 'pcaPexp', 'rejectedPCA'); 
             
         end
+end
+
+%% helper functions 
+function evs = uniqueEvents(evs)
+    idx1 = 1; idx2 = idx1 + 1;
+    while idx1 < size(evs,1)
+        ev1 = evs(idx1,:); ev2 = evs(idx2,:);
+        if (ev2(1).init_time <= ev1(2).init_time) & (ev2(2).init_time >= ev1(1).init_time)
+            % events are not unique (ev2 is contained in or equal to ev1) 
+            evs = evs([1:(idx2-1),(idx2+1):end],:);
+        elseif idx2 <= size(evs,1)
+            idx2 = idx2 + 1;
+        else
+            idx1 = idx1 + 1; idx2 = idx1 + 1;
+        end
+    end
 end
