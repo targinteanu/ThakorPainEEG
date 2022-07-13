@@ -1,8 +1,14 @@
-%% Set Filepaths
-clear 
+%% Start eeglab
+clear
+eeglabpath = '/Applications/MATLAB_R2021b.app/toolbox/eeglab2022.0';
+addpath(eeglabpath)
+eeglab
 
+%% Set Filepaths
 home = '/Users/torenarginteanu/Documents/MATLAB/ThakorPainEEG';
 cd(home)
+load("BrainwaveFrequencyTable.mat");
+global BandTableHz
 postproDir = uigetdir;
 
 cd(postproDir);
@@ -46,17 +52,17 @@ end
     {'TempStim', 'PinPrick', 'Pressure', 'BaselineOpen', 'BaselineClosed', 'BaselineIce'}, ...
     'multiple', 'Specify Variable');
 
-%% construct plots for each subject 
+%% baseline and calculations  
 table2baseline = @(tbl) [tbl.BaselineOpen('before experiment'),...
                          tbl.BaselineOpen('after experiment')];
-p = .001; % uncertainty level 
+p = .05; % uncertainty level 
 timeBetweenEvents = 5; timeAfterLast = 30; % seconds 
 baselineTransparency = .1;
 
 dataTables = cell(length(scanfiles),2);
 BLs = cell(length(scanfiles),1);
 for subj = 1:length(scanfiles)
-    fn = scanfiles(subj).name
+    fn = scanfiles{subj}
     load(fn);
 
     % get stats on baseline 
@@ -68,7 +74,7 @@ for subj = 1:length(scanfiles)
         if (~isempty(BL_Epoch{idx})) & (~isempty(BL_EpochSpec{idx}))
             [t,Y] = fcn(BL_EpochSpec{idx}, BL_Epoch{idx});
         end
-        BL{idx} = cat(t,Y,3);
+        BL{idx} = cat(3,t,Y);
     end
     BL = cell2mat(reshape(BL,[],1)); BLY = BL(:,:,2);
     dof = size(BL,1) - 1; % deg of freedom 
@@ -86,7 +92,45 @@ for subj = 1:length(scanfiles)
     clear tY_table EEG_table Epoch_table EpochSpec_table Spec_table
 end
 
-% determine max trial duration 
+%% graph baselines of each subj 
+fig(2) = figure; fig(1) = figure;
+for subj = 1:length(BLs)
+    fn = scanfiles{subj};
+    strend = find(fn == '-'); strend = strend((diff(strend)==1)); strend = max(1, strend(1)-2);
+    pname = fn(1:strend);
+    pname = pname((end-2):end);
+
+    % replace with more robust
+    %EEG = dataTables{subj,2}{1,1}{1}(1); 
+    EEG_table = dataTables{subj,2}; EEG = [];
+    for r = 1:height(EEG_table)
+        for c = 1:width(EEG_table)
+            EEGrc = EEG_table{r,c}{1};
+            if isempty(EEG)
+                if ~isempty(EEGrc)
+                    EEG = EEGrc;
+                end
+            end
+        end
+    end
+
+    figure(fig(1));
+    subplot(3,3,subj); % replace with more robust!!!
+    bar(BLs{subj}(2,:));
+    hold on; errorbar(BLs{subj}(2,:), BLs{subj}(3,:) - BLs{subj}(2,:), ...
+        '.k', 'LineWidth',1);
+    xticks(1:length(BLs{subj}(2,:)));
+    xticklabels({EEG.chanlocs.labels}); xlabel('Channel'); ylabel(yname);
+    title(['Subject ',pname,' Baseline']);
+    ylim(ylims);
+
+    figure(fig(2));
+    subplot(3,3,subj); % replace with more robust!!!
+    topoplot(BLs{subj}(2,:), EEG.chanlocs, 'maplimits', ylims, 'electrodes','labels'); colorbar;
+end
+clear fig
+
+%% determine max trial duration 
 disp('determining trial durations')
 maxTrialDur = 0; % s
 for subj = 1:size(dataTables,1)
@@ -94,16 +138,18 @@ for subj = 1:size(dataTables,1)
     for r = 1:height(EEG_table)
         for c = 1:width(EEG_table)
             EEG = EEG_table{r,c}{1};
-            init_time = [EEG.event.init_time];
-            timeDiff = diff(init_time);
-            sameTrial = [0, timeDiff <= timeBetweenEvents, 0]; 
+            if ~isempty(EEG)
+                init_time = [EEG.event.init_time];
+                timeDiff = diff(init_time);
+                sameTrial = [0, timeDiff <= timeBetweenEvents, 0];
                 % ^ event i = same trial as event i-1
-            trialBnd = diff(sameTrial); % 1=start, -1=end
-            dur = init_time(trialBnd == -1) - init_time(trialBnd == 1);
-            if isempty(dur)
-                dur = 0;
+                trialBnd = diff(sameTrial); % 1=start, -1=end
+                dur = init_time(trialBnd == -1) - init_time(trialBnd == 1);
+                if isempty(dur)
+                    dur = 0;
+                end
+                maxTrialDur = max(maxTrialDur, max(dur));
             end
-            maxTrialDur = max(maxTrialDur, max(dur));
             clear EEG init_time timeDiff sameTrial trialBnd dur
         end
     end
@@ -111,44 +157,46 @@ for subj = 1:size(dataTables,1)
 end
 maxTrialDur = maxTrialDur + timeAfterLast;
 
-% segment into trials 
+%% segment into trials 
 trialTables = cell(size(dataTables));
 for subj = 1:size(dataTables,1)
-    fn = scanfiles(subj).name
+    fn = scanfiles{subj}
     EEG_table = dataTables{subj,2}; EEG_trial = EEG_table;
     tY_table  = dataTables{subj,1}; tY_trial  = tY_table;
     disp('segmenting into trials')
     for r = 1:height(EEG_table)
         for c = 1:width(EEG_table)
             EEG = EEG_table{r,c}{1};
-            tY = tY_table{r,c}{1}; Y = tY(:,:,2); t = tY(:,:,1);
-            init_time = [EEG.event.init_time];
-            timeDiff = diff(init_time);
-            sameTrial = [0, timeDiff <= timeBetweenEvents]; 
+            if ~isempty(EEG)
+                tY = tY_table{r,c}{1}; Y = tY(:,:,2); t = tY(:,:,1);
+                init_time = [EEG.event.init_time];
+                timeDiff = diff(init_time);
+                sameTrial = [0, timeDiff <= timeBetweenEvents];
                 % ^ event i = same trial as event i-1
-            startEvs = EEG.event(~sameTrial);
-            EEGs = repmat(EEG, size(startEvs));
-            tYs = cell(size(startEvs));
-            for idx = 1:length(startEvs)
-                startT = startEvs(idx).latency/EEG.srate;
+                startEvs = EEG.event(~sameTrial);
+                EEGs = repmat(EEG, size(startEvs));
+                tYs = cell(size(startEvs));
+                for idx = 1:length(startEvs)
+                    startT = startEvs(idx).latency/EEG.srate;
 
-                disp(['Segment ',num2str(idx),' of ',num2str(length(startEvs)),...
-                    ' (',num2str(100*idx/length(startEvs),3),'%)'])
-                curEEG = pop_select(EEG, 'time', startT+[0,maxTrialDur]);
+                    disp(['Segment ',num2str(idx),' of ',num2str(length(startEvs)),...
+                        ' (',num2str(100*idx/length(startEvs),3),'%)'])
+                    curEEG = pop_select(EEG, 'time', startT+[0,maxTrialDur]);
                     curEEG.xmin = curEEG.xmin + startT;
                     curEEG.xmax = curEEG.xmax + startT;
                     curEEG.times = curEEG.times + startT*1000;
-                EEGs(idx) = curEEG;
+                    EEGs(idx) = curEEG;
 
-                ti = (t >= startT) & (t < startT+maxTrialDur);
-                curY = Y; curY(~ti) = nan; 
-                curT = t; curT(~ti) = nan;
-                tYs{idx} = cat(curT,curY,3);
+                    ti = (t >= startT) & (t < startT+maxTrialDur);
+                    curY = Y; curY(~ti) = nan;
+                    curT = t; curT(~ti) = nan;
+                    tYs{idx} = cat(3,curT,curY);
 
-                clear startT curEEG ti curY curT
+                    clear startT curEEG ti curY curT
+                end
+                EEG_trial{r,c} = {EEGs};
+                tY_trial{r,c} = {tYs};
             end
-            EEG_trial{r,c} = {EEGs};
-            tY_trial{r,c} = {tYs};
             clear EEG tY init_time timeDiff sameTrial EEGs tYs
         end
     end
@@ -156,7 +204,7 @@ for subj = 1:size(dataTables,1)
     clear EEG_table tY_table EEG_trial tY_trial
 end
 
-% organize for plotting 
+%% organize for plotting 
 for v = testVars
     disp(['setting up plots for ',v{:}]);
 
@@ -165,7 +213,7 @@ for v = testVars
     for subj = 1:size(trialTables,1)
         EEG_trial = trialTables{subj,2}; EEG_trial = makeSubtbl(EEG_trial, v);
         for r = 1:height(EEG_trial)
-            trialCount(subj) = length(EEG_trial{r,1}{:});
+            trialCount(subj) = trialCount(subj) + length(EEG_trial{r,1}{:});
         end
     end
     H = sum(trialCount > 0); trialTables = trialTables((trialCount > 0), :);
@@ -174,9 +222,10 @@ for v = testVars
     disp('plotting figures')
     figure; sgtitle([yname,' ',v{:}]);
     for subj = 1:H
-        fn = scanfiles(subj).name
-        strend = find(fn == '-'); strend = find(diff(strend)==1); strend = max(1, strend(1));
+        fn = scanfiles{subj}
+        strend = find(fn == '-'); strend = strend((diff(strend)==1)); strend = max(1, strend(1)-2);
         ylbl = fn(1:strend);
+        ylbl = ylbl((end-2):end);
 
         BL = BLs{subj};
         EEG_trial = trialTables{subj,2}; EEG_trial = makeSubtbl(EEG_trial, v);
@@ -188,12 +237,12 @@ for v = testVars
             for trl = 1:length(EEGs)
                 EEG = EEGs(trl); chlocs = EEG.chanlocs;
                 tY = tYs{trl}; Y = tY(:,:,2); t = tY(:,:,1);
-                chanSig = sum( (Y < BL(:,1)) | (Y > BL(:,3)) );
+                chanSig = sum( (Y < BL(1,:)) | (Y > BL(3,:)) );
 
                 idx2 = (subj-1)*W + idx1;
                 subplot(H,W,idx2);
                 ttl = [EEG_trial.Properties.RowNames{r},' trial ',num2str(trl)];
-                plotEvents(EEG);
+                plotEvents(EEG, ylims);
                 title(ttl); ylim(ylims); ylabel(ylbl); xlabel('time (s)');
 
                 for chan = 1:size(Y,2)
@@ -204,12 +253,12 @@ for v = testVars
                             'LineWidth',1);
                     end
                 end
-                legend({chlocs.labels})
+                %legend({chlocs.labels})
                 for chan = 1:size(Y,2)
                     if chanSig(chan)
                         tc = t(:,chan); Yc = Y(:,chan); 
                         fill([min(tc),min(tc),max(tc),max(tc)],...
-                             [BL(chan,1),BL(chan,3),BL(chan,3),BL(chan,1)],...
+                             [BL(1,chan),BL(3,chan),BL(3,chan),BL(1,chan)],...
                              chanColor(chlocs(chan), chlocs),...
                              'FaceAlpha',baselineTransparency);
                     end
@@ -230,6 +279,15 @@ function subtbl = makeSubtbl(tbl, vars)
 end
 
 function rgb = chanColor(chloc, chlocs)
+    if isempty(chloc.X)
+        chloc.X = 0;
+    end
+    if isempty(chloc.Y)
+        chloc.Y = 0;
+    end
+    if isempty(chloc.Z)
+        chloc.Z = 0;
+    end
     allXYZ = [chlocs.X; chlocs.Y; chlocs.Z]';
     chXYZ  = [chloc.X;  chloc.Y;  chloc.Z ]';
     chXYZ = chXYZ - min(allXYZ);
@@ -342,20 +400,22 @@ function [tblOut, eegTbl, epochTbl, epochSpecTbl] = ...
             if ~isempty(curEpoc)
                 [t,Y] = fcn(curSpec, curEpoc);
                 tblOut{r,c} = {cat(3,t,Y)};
-                eegTbl{r,c} = {eegTbl{r,c}(1)};
+                eegTbl{r,c} = {eegTbl{r,c}{1}(1)};
             end
         end
     end
 end
 
 
-function plotEvents(EEG)
+function plotEvents(EEG, ybound)
     event = EEG.event; srate = EEG.srate;
     hold on; 
     lbl_sw = false;
     for ev = event
-        if ~isempty(ev.latency) & ~strcmp(ev.type,'boundary')
-            initTime = ev.latency/srate;
+        if ~isempty(ev.init_time) & ...
+                ~sum(strcmp(ev.type,{'boundary','-1','15','14','12','13'}))
+            %initTime = ev.latency/srate;
+            initTime = ev.init_time;
             plot(initTime+[0,0], ybound, 'r', 'LineWidth',1.5);
             text(initTime, ybound(lbl_sw+1), ev.type);
             lbl_sw = ~lbl_sw;

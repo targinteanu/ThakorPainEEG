@@ -137,7 +137,7 @@ function fig1 = headmap(tbl, sttl, fcnToMap, maplims, vars, rows)
 
                 PAF = arrayfun(@(c) fcnToMap(w,P(c,:)), 1:nchan);
     
-                topoplot(PAF, chlocs, 'maplimits', maplims); colorbar;
+                topoplot(PAF, chlocs, 'maplimits', maplims, 'electrodes','labels'); colorbar;
 
             end
             title([vname,' ',rttl]);
@@ -198,7 +198,7 @@ function fig2 = before_after_corr(tbl, sttl, vars, rows, comparRows)
             rho = diag(corr(P_v(:,:,1)',P_v(:,:,2)'))';
             %rho(isnan(rho)) = 0;
             if ~sum(isnan(rho))
-                topoplot(rho, chlocs, 'maplimits', [0, 1]); colorbar;
+                topoplot(rho, chlocs, 'maplimits', [0, 1], 'electrodes','labels'); colorbar;
             end
         end
         idx = idx + 1;
