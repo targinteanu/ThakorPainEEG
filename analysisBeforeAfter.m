@@ -43,8 +43,14 @@ for ps = plotSel
             end
         elseif fcnSel == 3
             maplims = [0,1];
-        else
+            if isa(bnd,'char') | isa(bnd,'string')
+                bnd = band2freqs(bnd, BandTableHz);
+            end
+        elseif fcnSel == 2
             maplims = 'maxmin';
+            if isa(bnd,'char') | isa(bnd,'string')
+                bnd = band2freqs(bnd, BandTableHz);
+            end
         end
         fcnSel = fcnOpts{fcnSel}; fcnSel = @(w,P) fcnSel(w,P,bnd);
 
