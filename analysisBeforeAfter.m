@@ -204,7 +204,7 @@ function fig2 = before_after_corr(tbl, sttl, vars, rows, comparRows)
             rho = diag(corr(P_v(:,:,1)',P_v(:,:,2)'))';
             %rho(isnan(rho)) = 0;
             if ~sum(isnan(rho))
-                topoplot(rho, chlocs, 'maplimits', [0, 1], 'electrodes','labels'); colorbar;
+                topoplot(rho, chlocs, 'maplimits', [-1, 1], 'electrodes','labels'); colorbar;
             end
         end
         idx = idx + 1;
