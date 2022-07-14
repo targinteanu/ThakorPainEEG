@@ -175,7 +175,7 @@ for subj = 1:size(dataTables,1)
     for r = 1:height(EEG_table)
         for c = 1:width(EEG_table)
             EEG = EEG_table{r,c}{1};
-            if ~isempty(EEG)
+            if ~isempty(EEG) & ~isempty(tY_table{r,c}{1})
                 tY = tY_table{r,c}{1}; Y = tY(:,:,2); t = tY(:,:,1);
                 evs = EEG.event; 
                 evs = evs(arrayfun(@(ev) ~sum(strcmp(ev.type, {'-1','15','14','12','13'})), evs));
@@ -225,75 +225,88 @@ for v = testVars
     trialCount = zeros(size(trialTables,1),1);
     for subj = 1:size(trialTables,1)
         EEG_trial = trialTables{subj,2}; EEG_trial = makeSubtbl(EEG_trial, v);
+        tY_trial  = trialTables{subj,1}; tY_trial  = makeSubtbl(tY_trial,  v);
         for r = 1:height(EEG_trial)
-            trialCount(subj) = trialCount(subj) + length(EEG_trial{r,1}{:});
+            trialCount(subj) = trialCount(subj) + ...
+                min(length(EEG_trial{r,1}{:}), length(tY_trial{r,1}{:}));
         end
     end
-    H = sum(trialCount > 0); trialTables = trialTables((trialCount > 0), :);
+    H = sum(trialCount > 0); %trialTables = trialTables((trialCount > 0), :);
     W = max(trialCount);
     W = W+1; % plotting channel colors 
 
     disp('plotting time series')
     figure; sgtitle([yname,' ',v{:}]);
-    for subj = 1:H
+    idx3 = 0; 
+    for subj = 1:length(scanfiles)
+        idx3incr = false;
         fn = scanfiles{subj}
         strend = find(fn == '-'); strend = strend((diff(strend)==1)); strend = max(1, strend(1)-2);
         ylbl = fn(1:strend);
         ylbl = ylbl((end-2):end);
 
-        BL = BLs{subj};
+        BL = BLs{subj,1};
         EEG_trial = trialTables{subj,2}; EEG_trial = makeSubtbl(EEG_trial, v);
         tY_trial  = trialTables{subj,1}; tY_trial  = makeSubtbl(tY_trial,  v);
-        idx1 = 1;
+        idx1 = 1; idx2 = 1;
         for r = 1:height(EEG_trial)
             EEGs = EEG_trial{r,1}{:};
             tYs = tY_trial{r,1}{:};
             for trl = 1:length(EEGs)
-                EEG = EEGs(trl); chlocs = EEG.chanlocs;
-                tY = tYs{trl}; Y = tY(:,:,2); t = tY(:,:,1);
-                chanSig = sum( (Y < BL(1,:)) | (Y > BL(3,:)) );
+                if ~isempty(EEGs) & ~isempty(tYs)
+                    EEG = EEGs(trl);
+                    tY = tYs{trl};
+                    if ~isempty(EEG) & ~isempty(tY)
+                        chlocs = EEG.chanlocs;
+                        Y = tY(:,:,2); t = tY(:,:,1);
+                        chanSig = sum( ( (Y < BL(1,:)) | (Y > BL(3,:)) ),1 );
 
-                idx2 = (subj-1)*W + idx1;
-                subplot(H,W,idx2);
-                ttl = [EEG_trial.Properties.RowNames{r},' trial ',num2str(trl)];
-                plotEvents(EEG, ylims);
-                title(ttl); ylim(ylims); ylabel(ylbl); xlabel('time (s)');
+                        idx2 = (idx3)*W + idx1; idx3incr = true;
+                        subplot(H,W,idx2);
+                        ttl = [EEG_trial.Properties.RowNames{r},' trial ',num2str(trl)];
+                        plotEvents(EEG, ylims);
+                        title(ttl); ylim(ylims); ylabel(ylbl); xlabel('time (s)');
 
-                for chan = 1:size(Y,2)
-                    if chanSig(chan)
-                        tc = t(:,chan); Yc = Y(:,chan); 
-                        plot(tc, Yc, ...
-                            'Color',chanColor(chlocs(chan),chlocs),...
-                            'LineWidth',1);
+                        for chan = 1:size(Y,2)
+                            if chanSig(chan)
+                                tc = t(:,chan); Yc = Y(:,chan);
+                                plot(tc, Yc, ...
+                                    'Color',chanColor(chlocs(chan),chlocs),...
+                                    'LineWidth',1);
+                            end
+                        end
+                        %legend({chlocs.labels})
+                        %{
+                        for chan = 1:size(Y,2)
+                            if chanSig(chan)
+                                tc = t(:,chan); Yc = Y(:,chan); 
+                                fill([min(tc),min(tc),max(tc),max(tc)],...
+                                     [BL(1,chan),BL(3,chan),BL(3,chan),BL(1,chan)],...
+                                     chanColor(chlocs(chan), chlocs),...
+                                     'FaceAlpha',baselineTransparency);
+                            end
+                        end
+                        %}
+
+                        idx1 = idx1 + 1;
                     end
                 end
-                %legend({chlocs.labels})
-                %{
-                for chan = 1:size(Y,2)
-                    if chanSig(chan)
-                        tc = t(:,chan); Yc = Y(:,chan); 
-                        fill([min(tc),min(tc),max(tc),max(tc)],...
-                             [BL(1,chan),BL(3,chan),BL(3,chan),BL(1,chan)],...
-                             chanColor(chlocs(chan), chlocs),...
-                             'FaceAlpha',baselineTransparency);
-                    end
-                end
-                %}
-
-                idx1 = idx1 + 1;
             end
         end
-        subplot(H,W,idx2+1); hold on;
-        for chan = chlocs
-            plot3(chan.X, chan.Y, chan.Z, '.', ...
-                'Color', chanColor(chan, chlocs));
-            text(chan.X, chan.Y, chan.Z, chan.labels, ...
-                'Color', chanColor(chan, chlocs));
+        if idx3incr
+            subplot(H,W,idx2+1); hold on;
+            for chan = chlocs
+                plot3(chan.X, chan.Y, chan.Z, '.', ...
+                    'Color', chanColor(chan, chlocs));
+                text(chan.X, chan.Y, chan.Z, chan.labels, ...
+                    'Color', chanColor(chan, chlocs));
+            end
+            %idx1 = idx1 + 1;
         end
-        idx1 = idx1 + 1;
+        idx3 = idx3 + idx3incr;
     end
-    clear idx1 indx2 EEG_trial tY_trial EEGs tYs EEG tY t Y ttl ylbl strend ...
-          chanSig chan chlocs tc Yc;
+    clear idx1 idx2 EEG_trial tY_trial EEGs tYs EEG tY t Y ttl ylbl strend ...
+          chanSig chan chlocs tc Yc idx3 idx3incr;
 
     disp('running hypothesis tests')
     W = W-1;
@@ -304,7 +317,6 @@ for v = testVars
         ylbl = fn(1:strend);
         ylbl = ylbl((end-2):end);
 
-        BL = BLs{subj};
         EEG_trial = trialTables{subj,2}; EEG_trial = makeSubtbl(EEG_trial, v);
         tY_trial  = trialTables{subj,1}; tY_trial  = makeSubtbl(tY_trial,  v);
         BL = BLs{subj,2}; BL_t = BL(:,:,1); BL = BL(:,:,2);
@@ -313,23 +325,39 @@ for v = testVars
             EEGs = EEG_trial{r,1}{:};
             tYs = tY_trial{r,1}{:};
             for trl = 1:length(EEGs)
-                EEG = EEGs(trl); 
-                tY = tYs{trl}; Y = tY(:,:,2); Y_t = tY(:,:,1);
+                if ~isempty(EEGs) & ~isempty(tYs)
+                    EEG = EEGs(trl);
+                    tY = tYs{trl};
+                    if ~isempty(EEG) & ~isempty(tY)
+                        Y = tY(:,:,2); t = tY(:,:,1);
 
-                [~,p] = ttest2(BL,Y, 'Vartype','unequal');
+                        pp = zeros(1,size(Y,2));
+                        for chan = 1:size(Y,2)
+                            y = Y(:,chan); bl = BL(:,chan);
+                            y = y(~isnan(y)); bl = bl(~isnan(bl));
+                            if mean(y) > mean(bl)
+                                [~,pp(chan)] = ttest2(bl,y, 'Vartype','unequal', 'Tail','left');
+                                pp(chan) = 1-pp(chan);
+                            else
+                                [~,pp(chan)] = ttest2(bl,y, 'Vartype','unequal', 'Tail','right');
+                                pp(chan) = pp(chan)-1;
+                            end
+                        end
 
-                idx2 = (subj-1)*W + idx1;
-                subplot(H,W,idx2);
-                topoplot(p, EEG.chanlocs, 'maplimits', [0,1], 'electrodes','labels'); colorbar;
-                title([EEG_trial.Properties.RowNames{r},' trial ',num2str(trl)]);
-                ylabel(ylbl);
+                        idx2 = (subj-1)*W + idx1;
+                        subplot(H,W,idx2);
+                        topoplot(pp, EEG.chanlocs, 'maplimits', [-1,1]); colorbar;
+                        title([EEG_trial.Properties.RowNames{r},' trial ',num2str(trl)]);
+                        ylabel(ylbl);
 
-                idx1 = idx1 + 1;
+                        idx1 = idx1 + 1;
+                    end
+                end
             end
         end
     end 
     clear idx1 indx2 EEG_trial tY_trial EEGs tYs EEG tY Y_t Y BL BL_t...
-          p ttl ylbl strend;
+          pp ttl ylbl strend chan y bl;
 end
 
 %% helper functions 
