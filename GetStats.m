@@ -311,7 +311,9 @@ for v = testVars
     disp('running hypothesis tests')
     W = W-1;
     figure; sgtitle([yname,' ',v{:}]);
-    for subj = 1:H
+    idx3 = 0;
+    for subj = 1:length(scanfiles)
+        idx3incr = false;
         fn = scanfiles{subj}
         strend = find(fn == '-'); strend = strend((diff(strend)==1)); strend = max(1, strend(1)-2);
         ylbl = fn(1:strend);
@@ -320,7 +322,7 @@ for v = testVars
         EEG_trial = trialTables{subj,2}; EEG_trial = makeSubtbl(EEG_trial, v);
         tY_trial  = trialTables{subj,1}; tY_trial  = makeSubtbl(tY_trial,  v);
         BL = BLs{subj,2}; BL_t = BL(:,:,1); BL = BL(:,:,2);
-        idx1 = 1;
+        idx1 = 1; idx2 = 1;
         for r = 1:height(EEG_trial)
             EEGs = EEG_trial{r,1}{:};
             tYs = tY_trial{r,1}{:};
@@ -336,17 +338,19 @@ for v = testVars
                             y = Y(:,chan); bl = BL(:,chan);
                             y = y(~isnan(y)); bl = bl(~isnan(bl));
                             if mean(y) > mean(bl)
-                                [~,pp(chan)] = ttest2(bl,y, 'Vartype','unequal', 'Tail','left');
-                                pp(chan) = 1-pp(chan);
+                                %[~,pp(chan)] = ttest2(bl,y, 'Vartype','unequal', 'Tail','left');
+                                [~,pp(chan)] = kstest2(bl,y, 'Tail','larger');
+                                pp(chan) = .5-pp(chan);
                             else
-                                [~,pp(chan)] = ttest2(bl,y, 'Vartype','unequal', 'Tail','right');
-                                pp(chan) = pp(chan)-1;
+                                %[~,pp(chan)] = ttest2(bl,y, 'Vartype','unequal', 'Tail','right');
+                                [~,pp(chan)] = kstest2(bl,y, 'Tail','smaller');
+                                pp(chan) = pp(chan)-.5;
                             end
                         end
 
-                        idx2 = (subj-1)*W + idx1;
+                        idx2 = (idx3)*W + idx1; idx3incr = true;
                         subplot(H,W,idx2);
-                        topoplot(pp, EEG.chanlocs, 'maplimits', [-1,1]); colorbar;
+                        topoplot(pp, EEG.chanlocs, 'maplimits', [-.5,.5]); colorbar;
                         title([EEG_trial.Properties.RowNames{r},' trial ',num2str(trl)]);
                         ylabel(ylbl);
 
@@ -355,6 +359,7 @@ for v = testVars
                 end
             end
         end
+        idx3 = idx3 + idx3incr;
     end 
     clear idx1 indx2 EEG_trial tY_trial EEGs tYs EEG tY Y_t Y BL BL_t...
           pp ttl ylbl strend chan y bl;
