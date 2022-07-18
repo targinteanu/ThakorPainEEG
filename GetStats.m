@@ -54,10 +54,11 @@ end
     'multiple', 'Specify Variable');
 
 %% baseline and calculations  
-table2baseline = @(tbl) [tbl.BaselineOpen('before experiment'),...
-                         tbl.BaselineOpen('after experiment')];
+%table2baseline = @(tbl) [tbl.BaselineOpen('before experiment'),...
+%                         tbl.BaselineOpen('after experiment')];
+table2baseline = @(tbl) tbl.BaselineOpen('before experiment');
 p = .05; % uncertainty level 
-timeBetweenEvents = 5; timeAfterLast = 30; % seconds 
+timeBetweenEvents = 5; timeAfterLast = 15; % seconds 
 baselineTransparency = .1;
 
 dataTables = cell(length(scanfiles),2);
