@@ -9,10 +9,12 @@ function [CoG, maxval, pklocs] = peakFreq(w,P, bnd, tbl)
     end
 
     if nargin < 3
-        bnd = [min(w),max(w)]; 
+        bnd = [];
     end
     if isa(bnd,'char') | isa(bnd,'string')
         bnd = band2freqs(bnd, tbl);
+    elseif isempty(bnd)
+        bnd = [min(w),max(w)];
     end
 
     aband = (w >= bnd(1)) & (w <= bnd(2));
