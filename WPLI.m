@@ -1,6 +1,9 @@
 function [W, A] = WPLI(Z, cutoffPercentile)
 
 if nargin < 2
+    cutoffPercentile = [];
+end
+if isempty(cutoffPercentile)
     cutoffPercentile = 60;
 end
 
