@@ -68,7 +68,14 @@ for ps = plotSel
 
     elseif ps == 4
         % WPLI
-        before_after_WPLI(Spec_table, fn, selVars, selRows);
+        Wopts = {'WPLI', 'Binary Adjacency'};
+        Wsel = questdlg('Display what?', 'WPLI specification', ...
+            Wopts{1}, Wopts{2}, Wopts{1});
+        Wsel = find(strcmp(Wsel, Wopts));
+        if ~isempty(Wsel)
+            showBinary = Wsel == 2;
+            before_after_WPLI(Spec_table, showBinary, fn, selVars, selRows);
+        end
 
     end
 end
@@ -216,12 +223,15 @@ function fig2 = before_after_corr(tbl, sttl, vars, rows, comparRows)
     end
 end
 
-function fig = before_after_WPLI(tbl, sttl, vars, rows)
+function fig = before_after_WPLI(tbl, binaryOnly, sttl, vars, rows)
     
-        if nargin < 4
+        if nargin < 5
             subtbl = tbl;
-            if nargin < 2
+            if nargin < 3
                 sttl = '';
+                if nargin < 2
+                    binaryOnly = false;
+                end
             end
         else
             subtbl = makeSubtbl(tbl, vars, rows);
@@ -241,9 +251,15 @@ function fig = before_after_WPLI(tbl, sttl, vars, rows)
                 Fw = tblItem{1,1}{:};
                 if ~isempty(Fw)
                     F = Fw.frequencySpectrum; w = Fw.frequency2side;
-                    PLI = WPLI(F);
+                    [PLI, PLIA] = WPLI(F);
+                    PLIA = double(PLIA);
+                    if binaryOnly
+                        Hmp = PLIA;
+                    else
+                        Hmp = PLI;
+                    end
                     chlocs = Fw.chanlocs;
-                    heatmap({chlocs.labels}, {chlocs.labels}, PLI);
+                    heatmap({chlocs.labels}, {chlocs.labels}, Hmp);
                 end
                 title([vname,' ',rttl]);
             end
