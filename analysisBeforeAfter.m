@@ -22,7 +22,8 @@ varOpts = Spec_table.Properties.VariableNames; rowOpts = Spec_table.Properties.R
 [~,selRows] = listdlg_selectWrapper(rowOpts, 'multiple');
 
 %% main plotting 
-plotOpts = {'Channel Head Map', 'Channel Correlation', 'Channel Spectra', 'WPLI'};
+plotOpts = {'Channel Head Map', 'Channel Correlation', 'Channel Spectra', ...
+            'Network Matrix', '3D Network'};
 plotSel = listdlg_selectWrapper(plotOpts, 'multiple');
 for ps = plotSel
     if ps == 1
@@ -66,17 +67,23 @@ for ps = plotSel
         % spect
         before_after_spectra(Spec_table, fn, selVars, selRows);
 
-    elseif ps == 4
-        % WPLI
-        Wopts = {'WPLI', 'Binary Adjacency'};
-        Wsel = questdlg('Display what?', 'WPLI specification', ...
-            Wopts{1}, Wopts{2}, Wopts{1});
-        Wsel = find(strcmp(Wsel, Wopts));
-        if ~isempty(Wsel)
-            showBinary = Wsel == 2;
-            before_after_WPLI(Spec_table, showBinary, fn, selVars, selRows);
+    elseif sum(ps == [4,5])
+        % Network 
+        show3Dmap = ps == 5;
+        Mopts = {'WPLI', 'Binary Adjacency', 'Frequency Difference'};
+        Msel = listdlg_selectWrapper(Mopts, 'multiple', 'Display What?');
+        for MS = Msel
+            if sum(MS == [1,2])
+                showBinary = Msel == 2;
+                before_after_WPLI(Spec_table, showBinary, {fn, 'WPLI'}, ...
+                    selVars, selRows);
+            elseif MS == 3
+                [bnd,bndname] = pickFrequency;
+                before_after_freqDiff(Spec_table, bnd, ...
+                    {fn, [bndname,' band frequency difference']}, ...
+                    selVars, selRows);
+            end
         end
-
     end
 end
 
@@ -260,6 +267,48 @@ function fig = before_after_WPLI(tbl, binaryOnly, sttl, vars, rows)
                     end
                     chlocs = Fw.chanlocs;
                     heatmap({chlocs.labels}, {chlocs.labels}, Hmp);
+                end
+                title([vname,' ',rttl]);
+            end
+            
+            idx = idx + 1;
+        end
+    end
+end
+
+function fig = before_after_freqDiff(tbl, bnd, sttl, vars, rows)
+    
+        if nargin < 5
+            subtbl = tbl;
+            if nargin < 3
+                sttl = '';
+                if nargin < 2
+                    bnd = [];
+                end
+            end
+        else
+            subtbl = makeSubtbl(tbl, vars, rows);
+        end
+        global BandTableHz
+
+    fig = figure; sgtitle(sttl);
+    idx = 1;
+    W = height(subtbl); H = width(subtbl);
+    for v = 1:H
+        for r = 1:W
+            subplot(H,W,idx);
+            tblItem = subtbl(r,v); 
+            rttl = tblItem.Properties.RowNames{1};
+            vname = tblItem.Properties.VariableNames{1};
+
+            if ~isempty(tblItem{1,1})
+                Fw = tblItem{1,1}{:};
+                if ~isempty(Fw)
+                    F = Fw.powerSpectrum; w = Fw.frequency1side;
+                    chlocs = Fw.chanlocs; 
+
+                    Y = diffFreq(w, F, bnd, BandTableHz);
+                    heatmap({chlocs.labels}, {chlocs.labels}, Y);
                 end
                 title([vname,' ',rttl]);
             end
