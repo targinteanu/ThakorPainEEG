@@ -27,37 +27,49 @@ plotOpts = {'Channel Head Map', 'Channel Correlation', 'Channel Spectra', ...
 plotSel = listdlg_selectWrapper(plotOpts, 'multiple');
 for ps = plotSel
     if ps == 1
-        % pick frequency band range and function 
-        [bnd,bndname] = pickFrequency;
-        
-        meanAmp = @(w,P,band) mean(P(:, ( (w >= band(1))&(w <= band(2)) )), 2);
-        ampDensity = @(w,P,band) sum(P(:, ( (w >= band(1))&(w <= band(2)) )), 2) ./ sum(P,2);
-        fcnOpts = {@(w,P,band) peakFreq(w,P,band), meanAmp, ampDensity};
-        fcnOptNames = {'Peak Frequency in Band', 'Mean Band Power', 'Band Relative Density'};
+        % pick function 
+        fcnOptNames = {'Peak Frequency in Band', 'Mean Band Power', 'Band Relative Density', ...
+                       'Node Degree'};
         fcnSel = listdlg_selectWrapper(fcnOptNames, 'single'); 
         fcnSelName = fcnOptNames{fcnSel};
-        if fcnSel == 1
-            % map limits based on band
-            if isa(bnd,'char') | isa(bnd,'string')
-                maplims = band2freqs(bnd, BandTableHz);
-            else
-                maplims = bnd;
-            end
-        elseif fcnSel == 3
-            maplims = [0,1];
-            if isa(bnd,'char') | isa(bnd,'string')
-                bnd = band2freqs(bnd, BandTableHz);
-            end
-        elseif fcnSel == 2
-            maplims = 'maxmin';
-            if isa(bnd,'char') | isa(bnd,'string')
-                bnd = band2freqs(bnd, BandTableHz);
-            end
-        end
-        fcnSel = fcnOpts{fcnSel}; fcnSel = @(w,P) fcnSel(w,P,bnd);
 
-        headmap(Spec_table, {fn,[bndname,' ',fcnSelName]}, ...
-            fcnSel, maplims, selVars, selRows);
+        if sum(fcnSel == 1:3)
+            meanAmp = @(w,P,band) mean(P(:, ( (w >= band(1))&(w <= band(2)) )), 2);
+            ampDensity = @(w,P,band) sum(P(:, ( (w >= band(1))&(w <= band(2)) )), 2) ./ sum(P,2);
+            fcnOpts = {@(w,P,band) peakFreq(w,P,band), meanAmp, ampDensity};
+            % pick frequency band range
+            [bnd,bndname] = pickFrequency;
+            if fcnSel == 1
+                % map limits based on band
+                if isa(bnd,'char') | isa(bnd,'string')
+                    maplims = band2freqs(bnd, BandTableHz);
+                else
+                    maplims = bnd;
+                end
+            elseif fcnSel == 3
+                maplims = [0,1];
+                if isa(bnd,'char') | isa(bnd,'string')
+                    bnd = band2freqs(bnd, BandTableHz);
+                end
+            elseif fcnSel == 2
+                maplims = 'maxmin';
+                if isa(bnd,'char') | isa(bnd,'string')
+                    bnd = band2freqs(bnd, BandTableHz);
+                end
+            end
+            fcnSel = fcnOpts{fcnSel}; fcnSel = @(w,P) fcnSel(w,P,bnd);
+
+            headmap(Spec_table, {fn,[bndname,' ',fcnSelName]}, ...
+                fcnSel, maplims, selVars, selRows);
+        else
+            if fcnSel == 4
+                fcnSel = @(SpectObj) nodeDegree(SpectObj);
+                maplims = 'numchan';
+            end
+
+            network_headmap(Spec_table, {fn,fcnSelName}, fcnSel, maplims, ...
+                selVars, selRows);
+        end
 
     elseif ps == 2
         % corr
@@ -170,6 +182,52 @@ function fig1 = headmap(tbl, sttl, fcnToMap, maplims, vars, rows)
             idx = idx + 1;
         end
     end
+end
+
+function fig1 = network_headmap(tbl, sttl, fcnToMap, maplims, vars, rows)
+    fig1 = figure; sgtitle(sttl);
+
+    if nargin > 4
+        subtbl = makeSubtbl(tbl, vars, rows);
+    else
+        subtbl = tbl;
+    end
+
+    W = height(subtbl); H = width(subtbl);
+    idx = 1;
+    for v = 1:H
+        for r = 1:W
+            subplot(H,W,idx);
+
+            tblItem = subtbl(r,v);
+            rttl = tblItem.Properties.RowNames{1};
+            vname = tblItem.Properties.VariableNames{1};
+            eeg = tblItem{1,1}{1}; 
+            if ~isempty(eeg)
+                eeg = eeg(1); % first / longest duration only
+                chlocs = eeg.chanlocs; nchan = eeg.nbchan;
+                if strcmp(maplims, 'numchan')
+                    ml = [0, nchan];
+                else
+                    ml = maplims;
+                end
+    
+                topoplot(fcnToMap(eeg), chlocs, 'maplimits', ml, 'electrodes','labels'); colorbar;
+
+            end
+            title([vname,' ',rttl]);
+
+            idx = idx + 1;
+        end
+    end
+end
+
+function nd = nodeDegree(SpectObj, cutoffPercentile)
+    if nargin < 2
+        cutoffPercentile = [];
+    end
+    [~,A] = WPLI(SpectObj.frequencySpectrum, cutoffPercentile);
+    nd = sum(A);
 end
 
 function fig2 = before_after_corr(tbl, sttl, vars, rows, comparRows)
