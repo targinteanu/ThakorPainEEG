@@ -70,6 +70,10 @@ function subtbl = makeSubtbl(tbl, vars, rows)
                  ismember(tbl.Properties.VariableNames, vars));
 end
 
+function t = getTimes(epoch_EEG)
+    t = arrayfun(@(eeg) mean([eeg.xmin, eeg.xmax]), epoch_EEG(2:end));
+end
+
 function [bandrange, bandname] = pickFrequency()
     global BandTableHz
     freqOpts = [BandTableHz.Properties.RowNames; 'custom'];
@@ -183,7 +187,7 @@ function [tblOut, eegTbl, epochTbl, epochSpecTbl, fig] = ...
             curEEG  = eegTbl{r,c}{:};
             if length(curEpoc) > 1
                 EEG = curEEG(1);
-                [t,Y] = fcn(curSpec, curEpoc);
+                [Y,t] = fcn(curSpec, curEpoc);
                 tblOut{r,c} = {cat(3,t,Y)};
                 subplot(H,W,idx); 
                 ttl = [epochTbl.Properties.VariableNames{c},' ',epochTbl.Properties.RowNames{r}];
@@ -229,16 +233,18 @@ function plt = plotWithEvents(t, Y, EEG, ybound, ttl, ylbl)
     end
 end
 
-function [times,Y] = frqFcnEpoch(epoch_Spec, epoch_EEG, fcn)
+%% time-frequency functions 
+
+function [Y,times] = frqFcnEpoch(epoch_Spec, epoch_EEG, fcn)
     Y = cell2mat( arrayfun(@(eegSpec) ...
         fcn(eegSpec.frequency1side, eegSpec.powerSpectrum), ...
         epoch_Spec(2:end), 'UniformOutput', false) );
-    times = arrayfun(@(eeg) mean([eeg.xmin, eeg.xmax]), epoch_EEG(2:end));
+    times = getTimes(epoch_EEG);
     times = repmat(times,size(Y,1),1);
     times = times'; Y = Y';
 end
 
-function [times,Freq] = peakFreqEpoch(epoch_Spec, epoch_EEG, bnd, tbl)
+function [Freq,times] = peakFreqEpoch(epoch_Spec, epoch_EEG, bnd, tbl)
 % inspect peakFreq across epochs (time)
     % index 1 = original 
     nchan = epoch_Spec(1).nbchan;
@@ -252,4 +258,43 @@ function [times,Freq] = peakFreqEpoch(epoch_Spec, epoch_EEG, bnd, tbl)
             mean([eeg.xmin, eeg.xmax]), epoch_EEG(2:end));
     end
     times = PAFs(:,:,2)'; Freq = PAFs(:,:,1)';
+end
+
+%% network functions 
+
+function [nd,t] = nodeDegree(SpectObj, EEGObj, cutoffPercentile)
+    if nargin < 3
+        cutoffPercentile = [];
+    end
+    [~,A] = WPLI(SpectObj.frequencySpectrum, cutoffPercentile);
+    nd = sum(A);
+    t = getTimes(EEGObj);
+end
+
+function [a,t] = avg_neighbor(SpectObj, EEGObj, neighborFcn)
+    [~,Adj] = WPLI(SpectObj.frequencySpectrum, cutoffPercentile);
+    [~,Y] = neighborFcn(SpectObj, EEGObj);
+    a = arrayfun(@(c) mean(Y(Adj(:,c),c)), 1:length(PF));
+    t = getTimes(EEGObj);
+end
+
+function Af = assortativity(SpectObj, bnd, cutoffPercentile, tbl)
+    % 1D
+    if nargin < 4
+        if ~exist('BandTableHz')
+            load('BrainwaveFrequencyTable.mat');
+            global BandTableHz
+        end
+        tbl = BandTableHz;
+        if nargin < 3
+            cutoffPercentile = [];
+            if nargin < 2
+                bnd = [];
+            end
+        end
+    end
+    [~,Adj] = WPLI(SpectObj.frequencySpectrum, cutoffPercentile);
+    [Y,PF] = diffFreq(SpectObj.frequency1side, SpectObj.powerSpectrum, bnd, tbl);
+    y = arrayfun(@(c) mean(Y(Adj(:,c),c)), 1:length(PF));
+    Af = corr(PF, y, 'Type','Spearman');
 end
