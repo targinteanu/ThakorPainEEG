@@ -1,4 +1,4 @@
-function Y = diffFreq(w,F,bnd, tbl)
+function [Y, PF] = diffFreq(w,F,bnd, tbl)
 
     if nargin < 4 
         if ~exist('BandTableHz')
@@ -15,5 +15,5 @@ function Y = diffFreq(w,F,bnd, tbl)
         1:size(F,1));
 
     Y = abs(PF - PF')./(PF + PF');
-    
+
 end
