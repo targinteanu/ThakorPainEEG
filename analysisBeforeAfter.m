@@ -251,7 +251,7 @@ function fig = before_after_WPLI(tbl, binaryOnly, sttl, vars, rows)
                 Fw = tblItem{1,1}{:};
                 if ~isempty(Fw)
                     F = Fw.frequencySpectrum; w = Fw.frequency2side;
-                    [PLI, PLIA] = WPLI(F);
+                    [PLI, PLIA] = WPLI(F, 70);
                     PLIA = double(PLIA);
                     if binaryOnly
                         Hmp = PLIA;
