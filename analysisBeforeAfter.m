@@ -1,11 +1,12 @@
 %% Start eeglab
+clear 
+clear global
+
 eeglabpath = '/Applications/MATLAB_R2021b.app/toolbox/eeglab2022.0';
 addpath(eeglabpath)
 eeglab
 
 %% Set Filepaths
-clear 
-clear global
 
 home = '/Users/torenarginteanu/Documents/MATLAB/ThakorPainEEG';
 cd(home)
@@ -21,7 +22,7 @@ varOpts = Spec_table.Properties.VariableNames; rowOpts = Spec_table.Properties.R
 [~,selRows] = listdlg_selectWrapper(rowOpts, 'multiple');
 
 %% main plotting 
-plotOpts = {'Channel Head Map', 'Channel Correlation', 'Channel Spectra'};
+plotOpts = {'Channel Head Map', 'Channel Correlation', 'Channel Spectra', 'WPLI'};
 plotSel = listdlg_selectWrapper(plotOpts, 'multiple');
 for ps = plotSel
     if ps == 1
@@ -64,6 +65,10 @@ for ps = plotSel
     elseif ps == 3
         % spect
         before_after_spectra(Spec_table, fn, selVars, selRows);
+
+    elseif ps == 4
+        % WPLI
+        before_after_WPLI(Spec_table, fn, selVars, selRows);
 
     end
 end
@@ -208,6 +213,43 @@ function fig2 = before_after_corr(tbl, sttl, vars, rows, comparRows)
             end
         end
         idx = idx + 1;
+    end
+end
+
+function fig = before_after_WPLI(tbl, sttl, vars, rows)
+    
+        if nargin < 4
+            subtbl = tbl;
+            if nargin < 2
+                sttl = '';
+            end
+        else
+            subtbl = makeSubtbl(tbl, vars, rows);
+        end
+
+    fig = figure; sgtitle(sttl);
+    idx = 1;
+    W = height(subtbl); H = width(subtbl);
+    for v = 1:H
+        for r = 1:W
+            subplot(H,W,idx);
+            tblItem = subtbl(r,v); 
+            rttl = tblItem.Properties.RowNames{1};
+            vname = tblItem.Properties.VariableNames{1};
+
+            if ~isempty(tblItem{1,1})
+                Fw = tblItem{1,1}{:};
+                if ~isempty(Fw)
+                    F = Fw.frequencySpectrum; w = Fw.frequency2side;
+                    PLI = WPLI(F);
+                    chlocs = Fw.chanlocs;
+                    heatmap({chlocs.labels}, {chlocs.labels}, PLI);
+                end
+                title([vname,' ',rttl]);
+            end
+            
+            idx = idx + 1;
+        end
     end
 end
 
