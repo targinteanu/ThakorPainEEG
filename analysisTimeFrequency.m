@@ -44,8 +44,8 @@ if sum(plotSel == [1:3,5])
     % frequency band must be selected 
     [bnd,bndname] = pickFrequency();
     yname = [yname,bndname,' ',plotOpts{plotSel}];
-    fcn0 = fcnOpts{plotSel};
     if sum(plotSel == [2,3])
+        fcn0 = fcnOpts{plotSel};
         bnd = band2freqs(bnd, BandTableHz);
         fcn = @(Spec, EEG) frqFcnEpoch(Spec, EEG, @(w,P) fcn0(w,P,bnd));
         if plotSel == 3
@@ -319,7 +319,7 @@ function [nd,t] = nodeDegree(SpectObj, EEGObj, cutoffPercentile)
     end
     nd = zeros(SpectObj(1).nbchan,length(SpectObj));
     for s = 1:length(SpectObj)
-        [~,A] = WPLI(SpectObj(s).frequencySpectrum, cutoffPercentile);
+        [W,A] = WPLI(SpectObj(s).frequencySpectrum, cutoffPercentile);
         nd(:,s) = sum(A);
     end
     t = getTimes(EEGObj);
