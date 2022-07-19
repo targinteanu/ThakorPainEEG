@@ -19,6 +19,6 @@ W = abs(mean(C,2))./mean(abs(C),2);
 W = squeeze(W);
 
 Wval = sort(W(:)); cutoff = Wval(round((cutoffPercentile/100)*length(Wval)));
-A = W >= cutoff; 
+A = W > cutoff; 
 
 end
