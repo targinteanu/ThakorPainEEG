@@ -29,7 +29,7 @@ for ps = plotSel
     if ps == 1
         % pick function 
         fcnOptNames = {'Peak Frequency in Band', 'Mean Band Power', 'Band Relative Density', ...
-                       'Node Degree'};
+                       'Node Degree', 'Connectivity Strength'};
         fcnSel = listdlg_selectWrapper(fcnOptNames, 'single'); 
         fcnSelName = fcnOptNames{fcnSel};
 
@@ -65,6 +65,10 @@ for ps = plotSel
             if fcnSel == 4
                 fcnSel = @(SpectObj) nodeDegree(SpectObj);
                 maplims = 'numchan';
+            elseif fcnSel == 5
+                % Conn Strength
+                fcnSel = @(SpectObj) mean(WPLI(SpectObj.frequencySpectrum), 'omitnan');
+                maplims = 'maxmin';
             end
 
             network_headmap(Spec_table, {fn,fcnSelName}, fcnSel, maplims, ...

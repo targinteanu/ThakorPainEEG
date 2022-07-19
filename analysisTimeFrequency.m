@@ -1,10 +1,12 @@
 %% Start eeglab
+clear 
+clear global 
+
 eeglabpath = '/Applications/MATLAB_R2021b.app/toolbox/eeglab2022.0';
 addpath(eeglabpath)
 eeglab
 
-%% Set Filepaths
-clear 
+%% Set Filepaths 
 
 home = '/Users/torenarginteanu/Documents/MATLAB/ThakorPainEEG';
 cd(home)
@@ -22,7 +24,7 @@ clear fcn yname ylims
 meanAmp = @(w,P,band) mean(P(:, ( (w >= band(1))&(w <= band(2)) )), 2);
 ampDensity = @(w,P,band) sum(P(:, ( (w >= band(1))&(w <= band(2)) )), 2) ./ sum(P,2);
 plotOpts = {'Peak Freq (Hz)', 'Band Mean (\muV^2 s^2)', 'Band Density', ...
-            'Node Degree', 'Frequency Assortativity', ...
+            'Node Degree', 'Connectivity Strength', 'Frequency Assortativity', ...
             'Neighbors Average '};
 yname = [];
 fcnOpts = {@(w,P,band) peakFreq(w,P,band), meanAmp, ampDensity};
@@ -35,12 +37,12 @@ while plotSel == length(plotOpts)
     yname = [yname, plotOpts{plotSel}];
     plotSel = listdlg_selectWrapper(plotOpts, 'single', 'Average What?');
 end
-if sum(plotSel == [4,5])
+if sum(plotSel == [4,6])
     % percentile cutoff must be selected 
     Pcut = inputdlg('Cutoff Percentile (%)','Network Cutoff Selection');
     Pcut = str2num(Pcut{1});
 end
-if sum(plotSel == [1:3,5])
+if sum(plotSel == [1:3,6])
     % frequency band must be selected 
     [bnd,bndname] = pickFrequency();
     yname = [yname,bndname,' ',plotOpts{plotSel}];
@@ -62,7 +64,7 @@ if sum(plotSel == [1:3,5])
         else
             ylims = bnd;
         end
-    elseif plotSel == 5
+    elseif plotSel == 6
         % assortativity 
         fcn = @(Spec, EEG) assortativity(Spec, EEG, bnd, Pcut, BandTableHz);
         ylims = [-1, 1];
@@ -72,6 +74,10 @@ else
         % node degree
         fcn = @(Spec, EEG) nodeDegree(Spec, EEG, Pcut);
         ylims = [0,EEG0.nbchan];
+    elseif plotSel == 5
+        % conn strength
+        fcn = @(Spec, EEG) connStrength(Spec, EEG);
+        ylims = [];
     end
 end
 for l = 1:neighborLayers
@@ -327,6 +333,18 @@ function [nd,t] = nodeDegree(SpectObj, EEGObj, cutoffPercentile)
     nd = nd'; t = t';
 end
 
+function [cs,t] = connStrength(SpectObj, EEGObj)
+    % each channel's average WPLI with all others 
+    cs = zeros(SpectObj(1).nbchan,length(SpectObj));
+    for s = 1:length(SpectObj)
+        W = WPLI(SpectObj(s).frequencySpectrum);
+        cs(:,s) = mean(W, 'omitnan');
+    end
+    t = getTimes(EEGObj);
+    t = repmat(t, size(cs,1), 1); 
+    cs = cs'; t = t';
+end
+
 function [a,t] = avg_neighbor(SpectObj, EEGObj, neighborFcn)
     [~,Adj] = WPLI(SpectObj.frequencySpectrum, cutoffPercentile);
     Y = neighborFcn(SpectObj, EEGObj); Y = Y';
@@ -362,7 +380,8 @@ function [Af,t] = assortativity(SpectObj, EEGObj, bnd, cutoffPercentile, tbl)
         [~,Adj] = WPLI(SpectObj(s).frequencySpectrum, cutoffPercentile);
         [~,PF] = diffFreq(SpectObj(s).frequency1side, SpectObj(s).powerSpectrum, bnd, tbl);
         y = arrayfun(@(c) mean(PF(Adj(:,c))), 1:length(PF));
-        Af(s) = corr(PF, y, 'Type','Spearman');
+        Af(s) = corr(PF', y', 'Type','Spearman');
     end
     t = getTimes(EEGObj);
+    Af = Af'; t = t';
 end
