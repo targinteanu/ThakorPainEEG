@@ -90,12 +90,12 @@ for ps = plotSel
         Msel = listdlg_selectWrapper(Mopts, 'multiple', 'Display What?');
         for MS = Msel
             if sum(MS == [1,2])
-                showBinary = Msel == 2;
-                before_after_WPLI(Spec_table, showBinary, {fn, 'WPLI'}, ...
+                showBinary = MS == 2;
+                before_after_WPLI(Spec_table, showBinary, show3Dmap, {fn, 'WPLI'}, ...
                     selVars, selRows);
             elseif MS == 3
                 [bnd,bndname] = pickFrequency;
-                before_after_freqDiff(Spec_table, bnd, ...
+                before_after_freqDiff(Spec_table, bnd, show3Dmap, ...
                     {fn, [bndname,' band frequency difference']}, ...
                     selVars, selRows);
             end
@@ -292,14 +292,37 @@ function fig2 = before_after_corr(tbl, sttl, vars, rows, comparRows)
     end
 end
 
-function fig = before_after_WPLI(tbl, binaryOnly, sttl, vars, rows)
+function plot3Dnetwork(Hmp, chlocs)
+    badch = arrayfun(@(ch) isempty(ch.X) | isempty(ch.Y) | isempty(ch.Z), chlocs);
+    goodch = ~badch;
+    chlocs = chlocs(goodch);
+    Hmp = Hmp(goodch, goodch);
+    for c1 = 1:(size(Hmp,1)-1)
+        for c2 = (c1+1):size(Hmp,2)
+            %lw = Hmp(c1,c2)*4.9/(max(Hmp(:))-min(Hmp(:))) + .1;
+            %colr = ones(1,3) - Hmp(c1,c2)/max(Hmp(:));
+            colr = Hmp(c1,c2)/max(Hmp(:));
+            ch12 = chlocs([c1, c2]);
+            %plot3([ch12.X],[ch12.Y],[ch12.Z],'LineWidth',.2,'Color',colr);
+            ch12 = [ch12, fliplr(ch12)];
+            patch([ch12.X] + [0,0,1,1], [ch12.Y] + [0,0,1,1], [ch12.Z] + [0,0,1,1], ...
+                'k', 'FaceAlpha', colr, 'EdgeColor', 'none');
+        end
+    end
+    text([chlocs.X],[chlocs.Y],[chlocs.Z],{chlocs.labels},'Color','b');
+end
+
+function fig = before_after_WPLI(tbl, binaryOnly, show3Dmap, sttl, vars, rows)
     
-        if nargin < 5
+        if nargin < 6
             subtbl = tbl;
-            if nargin < 3
+            if nargin < 4
                 sttl = '';
-                if nargin < 2
-                    binaryOnly = false;
+                if nargin < 3
+                    show3Dmap = false;
+                    if nargin < 2
+                        binaryOnly = false;
+                    end
                 end
             end
         else
@@ -328,7 +351,13 @@ function fig = before_after_WPLI(tbl, binaryOnly, sttl, vars, rows)
                         Hmp = PLI;
                     end
                     chlocs = Fw.chanlocs;
-                    heatmap({chlocs.labels}, {chlocs.labels}, Hmp);
+
+                    if ~show3Dmap
+                        heatmap({chlocs.labels}, {chlocs.labels}, Hmp);
+                    else
+                        hold on;
+                        plot3Dnetwork(Hmp, chlocs);
+                    end
                 end
                 title([vname,' ',rttl]);
             end
@@ -338,14 +367,17 @@ function fig = before_after_WPLI(tbl, binaryOnly, sttl, vars, rows)
     end
 end
 
-function fig = before_after_freqDiff(tbl, bnd, sttl, vars, rows)
+function fig = before_after_freqDiff(tbl, bnd, show3Dmap, sttl, vars, rows)
     
-        if nargin < 5
+        if nargin < 6
             subtbl = tbl;
-            if nargin < 3
+            if nargin < 4
                 sttl = '';
-                if nargin < 2
-                    bnd = [];
+                if nargin < 3
+                    show3Dmap = false;
+                    if nargin < 2
+                        bnd = [];
+                    end
                 end
             end
         else
@@ -370,7 +402,12 @@ function fig = before_after_freqDiff(tbl, bnd, sttl, vars, rows)
                     chlocs = Fw.chanlocs; 
 
                     Y = diffFreq(w, F, bnd, BandTableHz);
-                    heatmap({chlocs.labels}, {chlocs.labels}, Y);
+                    if ~show3Dmap
+                        heatmap({chlocs.labels}, {chlocs.labels}, Y);
+                    else
+                        hold on;
+                        plot3Dnetwork(Y, chlocs);
+                    end
                 end
                 title([vname,' ',rttl]);
             end
