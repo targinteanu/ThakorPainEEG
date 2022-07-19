@@ -1,10 +1,32 @@
-function [W, A] = WPLI(Z, cutoffPercentile)
+function [W, A] = WPLI(Z, cutoffPercentile, bnd, w, tbl)
 
-if nargin < 2
-    cutoffPercentile = [];
+if nargin < 5
+    tbl = [];
+    if nargin < 3
+        bnd = [];
+        if nargin < 2
+            cutoffPercentile = [];
+        end
+    end
 end
 if isempty(cutoffPercentile)
     cutoffPercentile = 60;
+end
+
+if ~isempty(bnd)
+    if isempty(tbl)
+        if ~exist('BandTableHz')
+            load('BrainwaveFrequencyTable.mat');
+            global BandTableHz
+        end
+        tbl = BandTableHz;
+    end
+    if isa(bnd,'char') | isa(bnd,'string')
+        bnd = band2freqs(bnd, tbl);
+    end
+
+    inband = (w >= bnd(1)) & (w <= bnd(2));
+    Z = Z(:, inband); 
 end
 
 C = zeros([size(Z), size(Z,1)]); 

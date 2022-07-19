@@ -33,12 +33,12 @@ for ps = plotSel
         fcnSel = listdlg_selectWrapper(fcnOptNames, 'single'); 
         fcnSelName = fcnOptNames{fcnSel};
 
+        % pick frequency band range
+        [bnd,bndname] = pickFrequency;
         if sum(fcnSel == 1:3)
             meanAmp = @(w,P,band) mean(P(:, ( (w >= band(1))&(w <= band(2)) )), 2);
             ampDensity = @(w,P,band) sum(P(:, ( (w >= band(1))&(w <= band(2)) )), 2) ./ sum(P,2);
             fcnOpts = {@(w,P,band) peakFreq(w,P,band), meanAmp, ampDensity};
-            % pick frequency band range
-            [bnd,bndname] = pickFrequency;
             if fcnSel == 1
                 % map limits based on band
                 if isa(bnd,'char') | isa(bnd,'string')
@@ -63,11 +63,16 @@ for ps = plotSel
                 fcnSel, maplims, selVars, selRows);
         else
             if fcnSel == 4
-                fcnSel = @(SpectObj) nodeDegree(SpectObj);
+                % node deg
+                Pcut = inputdlg('Cutoff Percentile (%)','Network Cutoff Selection');
+                Pcut = str2num(Pcut{1});
+                fcnSel = @(SpectObj) nodeDegree(SpectObj, Pcut, bnd, BandTableHz);
                 maplims = 'numchan';
             elseif fcnSel == 5
                 % Conn Strength
-                fcnSel = @(SpectObj) mean(WPLI(SpectObj.frequencySpectrum), 'omitnan');
+                fcnSel = @(SpectObj) mean(...
+                    WPLI(SpectObj.frequencySpectrum, [], bnd, SpectObj.frequency2side, BandTableHz), ...
+                    'omitnan');
                 maplims = 'maxmin';
             end
 
@@ -88,13 +93,20 @@ for ps = plotSel
         show3Dmap = ps == 5;
         Mopts = {'WPLI', 'Binary Adjacency', 'Frequency Difference'};
         Msel = listdlg_selectWrapper(Mopts, 'multiple', 'Display What?');
+        [bnd,bndname] = pickFrequency;
         for MS = Msel
             if sum(MS == [1,2])
                 showBinary = MS == 2;
-                before_after_WPLI(Spec_table, showBinary, show3Dmap, {fn, 'WPLI'}, ...
+                if showBinary
+                    Pcut = inputdlg('Cutoff Percentile (%)','Network Cutoff Selection');
+                    Pcut = str2num(Pcut{1});
+                else
+                    Pcut = [];
+                end
+                before_after_WPLI(Spec_table, Pcut, bnd, BandTableHz, showBinary, show3Dmap, ...
+                    {fn, [bndname,' WPLI']}, ...
                     selVars, selRows);
             elseif MS == 3
-                [bnd,bndname] = pickFrequency;
                 before_after_freqDiff(Spec_table, bnd, show3Dmap, ...
                     {fn, [bndname,' band frequency difference']}, ...
                     selVars, selRows);
@@ -108,15 +120,28 @@ end
 function [bandrange, bandname] = pickFrequency()
     global BandTableHz
     freqOpts = [BandTableHz.Properties.RowNames; 'custom'];
-    bandrange = listdlg_selectWrapper(freqOpts, 'single', 'Specify Frequency Band');
-    if bandrange == length(freqOpts)
+    [bandrange,ok] = listdlg('ListString',freqOpts, 'SelectionMode','single', ...
+        'PromptString', 'Specify Frequency Band');
+    while ~ok
+        bandrange = questdlg('Use unbounded band?');
+        ok = strcmp(bandrange, 'Yes');
+        if ~ok
+            [bandrange,ok] = listdlg('ListString',freqOpts, 'SelectionMode','single', ...
+                'PromptString', 'Specify Frequency Band');
+        else
+            bandrange = 0;
+        end
+    end
+    if bandrange == 0
+        bandrange = []; bandname = '';
+    elseif bandrange == length(freqOpts)
         % custom 
         bandrange = inputdlg({'Minimum Frequency (Hz):', 'Maximum Frequency (Hz):'},...
             'Specify Custom Frequency Band:');
         bandname = [bandrange{1},'-',bandrange{2},'Hz'];
         bandrange = arrayfun(@(i) str2double(bandrange{i}), 1:length(bandrange));
     else
-        bandrange = freqOpts{bandrange}; bandname = bandrange;
+        bandrange = freqOpts{bandrange}; bandname = ['\',bandrange];
     end
 end
 
@@ -226,11 +251,17 @@ function fig1 = network_headmap(tbl, sttl, fcnToMap, maplims, vars, rows)
     end
 end
 
-function nd = nodeDegree(SpectObj, cutoffPercentile)
-    if nargin < 2
-        cutoffPercentile = [];
+function nd = nodeDegree(SpectObj, cutoffPercentile, bnd, tbl)
+    if nargin < 4
+        tbl = [];
+        if nargin < 3
+            bnd = [];
+            if nargin < 2
+                cutoffPercentile = [];
+            end
+        end
     end
-    [~,A] = WPLI(SpectObj.frequencySpectrum, cutoffPercentile);
+    [~,A] = WPLI(SpectObj.frequencySpectrum, cutoffPercentile, bnd, SpectObj.frequency2side, tbl);
     nd = sum(A);
 end
 
@@ -312,16 +343,25 @@ function plot3Dnetwork(Hmp, chlocs)
     text([chlocs.X],[chlocs.Y],[chlocs.Z],{chlocs.labels},'Color','b');
 end
 
-function fig = before_after_WPLI(tbl, binaryOnly, show3Dmap, sttl, vars, rows)
+function fig = before_after_WPLI(tbl, Pcut, bnd, bndTbl, binaryOnly, show3Dmap, sttl, vars, rows)
     
-        if nargin < 6
+        if nargin < 9
             subtbl = tbl;
-            if nargin < 4
+            if nargin < 7
                 sttl = '';
-                if nargin < 3
+                if nargin < 6
                     show3Dmap = false;
-                    if nargin < 2
+                    if nargin < 5
                         binaryOnly = false;
+                        if nargin < 4
+                            bndTbl = [];
+                            if nargin < 3
+                                bnd = [];
+                                if nargin < 2
+                                    Pcut = [];
+                                end
+                            end
+                        end
                     end
                 end
             end
@@ -343,7 +383,7 @@ function fig = before_after_WPLI(tbl, binaryOnly, show3Dmap, sttl, vars, rows)
                 Fw = tblItem{1,1}{:};
                 if ~isempty(Fw)
                     F = Fw.frequencySpectrum; w = Fw.frequency2side;
-                    [PLI, PLIA] = WPLI(F, 70);
+                    [PLI, PLIA] = WPLI(F, Pcut, bnd, w, bndTbl);
                     PLIA = double(PLIA);
                     if binaryOnly
                         Hmp = PLIA;

@@ -42,7 +42,7 @@ if sum(plotSel == [4,6])
     Pcut = inputdlg('Cutoff Percentile (%)','Network Cutoff Selection');
     Pcut = str2num(Pcut{1});
 end
-if sum(plotSel == [1:3,6])
+if sum(plotSel == 1:6)
     % frequency band must be selected 
     [bnd,bndname] = pickFrequency();
     yname = [yname,bndname,' ',plotOpts{plotSel}];
@@ -68,20 +68,18 @@ if sum(plotSel == [1:3,6])
         % assortativity 
         fcn = @(Spec, EEG) assortativity(Spec, EEG, bnd, Pcut, BandTableHz);
         ylims = [-1, 1];
-    end
-else
-    if plotSel == 4
+    elseif plotSel == 4
         % node degree
-        fcn = @(Spec, EEG) nodeDegree(Spec, EEG, Pcut);
+        fcn = @(Spec, EEG) nodeDegree(Spec, EEG, Pcut, bnd, BandTableHz);
         ylims = [0,EEG0.nbchan];
     elseif plotSel == 5
         % conn strength
-        fcn = @(Spec, EEG) connStrength(Spec, EEG);
+        fcn = @(Spec, EEG) connStrength(Spec, EEG, bnd, BandTableHz);
         ylims = [];
     end
 end
 for l = 1:neighborLayers
-    fcn = @(Spec, EEG) avg_neighbor(Spec, EEG, fcn(Spec, EEG));
+    fcn = @(Spec, EEG) avg_neighbor(Spec, EEG, fcn(Spec, EEG), bnd, BandTableHz);
 end
 AllPlot_table = plotTbl(EEG_table, Epoch_table, EpochSpec_table, fcn, ylims, ...
     yname, fn);
@@ -319,13 +317,20 @@ end
 
 %% network functions 
 
-function [nd,t] = nodeDegree(SpectObj, EEGObj, cutoffPercentile)
-    if nargin < 3
-        cutoffPercentile = [];
+function [nd,t] = nodeDegree(SpectObj, EEGObj, cutoffPercentile, bnd, tbl)
+    if nargin < 5
+        tbl = [];
+        if nargin < 4
+            bnd = [];
+            if nargin < 3
+                cutoffPercentile = [];
+            end
+        end
     end
     nd = zeros(SpectObj(1).nbchan,length(SpectObj));
     for s = 1:length(SpectObj)
-        [W,A] = WPLI(SpectObj(s).frequencySpectrum, cutoffPercentile);
+        [W,A] = WPLI(SpectObj(s).frequencySpectrum, cutoffPercentile, ...
+            bnd, SpectObj(s).frequency2side, tbl);
         nd(:,s) = sum(A);
     end
     t = getTimes(EEGObj);
@@ -333,11 +338,17 @@ function [nd,t] = nodeDegree(SpectObj, EEGObj, cutoffPercentile)
     nd = nd'; t = t';
 end
 
-function [cs,t] = connStrength(SpectObj, EEGObj)
+function [cs,t] = connStrength(SpectObj, EEGObj, bnd, tbl)
+    if nargin < 4
+        tbl = [];
+        if nargin < 3
+            bnd = [];
+        end
+    end
     % each channel's average WPLI with all others 
     cs = zeros(SpectObj(1).nbchan,length(SpectObj));
     for s = 1:length(SpectObj)
-        W = WPLI(SpectObj(s).frequencySpectrum);
+        W = WPLI(SpectObj(s).frequencySpectrum, [], bnd, SpectObj(s).frequency2side, tbl);
         cs(:,s) = mean(W, 'omitnan');
     end
     t = getTimes(EEGObj);
@@ -345,16 +356,23 @@ function [cs,t] = connStrength(SpectObj, EEGObj)
     cs = cs'; t = t';
 end
 
-function [a,t] = avg_neighbor(SpectObj, EEGObj, neighborFcn)
-    [~,Adj] = WPLI(SpectObj.frequencySpectrum, cutoffPercentile);
+function [A,t] = avg_neighbor(SpectObj, EEGObj, neighborFcn, bnd, tbl)
+    if nargin < 5
+        tbl = [];
+        if nargin < 4
+            bnd = [];
+        end
+    end
     Y = neighborFcn(SpectObj, EEGObj); Y = Y';
-    a = zeros(size(Y));
-    for pt = 1:size(a,2)
-        a(:,pt) = arrayfun(@(c) mean(Y(Adj(:,c)),pt), 1:size(Y,1));
+    A = zeros(size(Y));
+    for s = 1:length(SpectObj)
+        [~,Adj] = WPLI(SpectObj(s).frequencySpectrum, cutoffPercentile, bnd, ...
+            SpectObj(s).frequency2side, tbl);
+        A(:,s) = arrayfun(@(c) mean(Y(Adj(:,c),s)), 1:size(Y,1));
     end
     t = getTimes(EEGObj);
     t = repmat(t, size(nd,1), 1); 
-    a = a'; t = t';
+    A = A'; t = t';
 end
 
 function [Af,t] = assortativity(SpectObj, EEGObj, bnd, cutoffPercentile, tbl)
@@ -377,7 +395,8 @@ function [Af,t] = assortativity(SpectObj, EEGObj, bnd, cutoffPercentile, tbl)
     end
     Af = zeros(size(SpectObj));
     for s = 1:length(SpectObj)
-        [~,Adj] = WPLI(SpectObj(s).frequencySpectrum, cutoffPercentile);
+        [~,Adj] = WPLI(SpectObj(s).frequencySpectrum, cutoffPercentile, bnd, ...
+            SpectObj(s).frequency2side, tbl);
         [~,PF] = diffFreq(SpectObj(s).frequency1side, SpectObj(s).powerSpectrum, bnd, tbl);
         y = arrayfun(@(c) mean(PF(Adj(:,c))), 1:length(PF));
         Af(s) = corr(PF', y', 'Type','Spearman');
