@@ -351,7 +351,6 @@ end
 
 function [Freq,times] = peakFreqEpoch(epoch_Spec, epoch_EEG, bnd, tbl)
 % inspect peakFreq across epochs (time)
-    % index 1 = original 
     nchan = epoch_Spec(1).nbchan;
     PAFs = zeros(nchan, length(epoch_Spec), 2);
     for chan = 1:nchan
