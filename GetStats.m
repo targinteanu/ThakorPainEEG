@@ -24,15 +24,49 @@ svloc = [postproDir,'/Stats ',...
 meanAmp = @(w,P,band) mean(P(:, ( (w >= band(1))&(w <= band(2)) )), 2);
 ampDensity = @(w,P,band) sum(P(:, ( (w >= band(1))&(w <= band(2)) )), 2) ./ sum(P,2);
 plotOpts = {'Peak Freq (Hz)', 'Band Mean (\muV^2 s^2)', 'Band Density'};
+plotOpts = {'Peak Freq (Hz)', 'Band Mean (\muV^2 s^2)', 'Band Density', ...
+            'Node Degree', 'Connectivity Strength', 'Frequency Assortativity', ...
+            'Neighbors Average '};
+analysisOpts = {'single variable', 'correlation'};
+analysisType = questdlg('Calculate What?', 'Analysis Type', ...
+                        analysisOpts{1}, analysisOpts{2}, analysisOpts{1});
+analysisType = find(strcmp(analysisType, analysisOpts));
+if analysisType == 1
+    nvar = 'single';
+    yname = [];
+elseif analysisType == 2
+    nvar = 'multiple';
+    yname = 'Correlation Between ';
+end
 fcnOpts = {@(w,P,band) peakFreq(w,P,band), meanAmp, ampDensity};
-plotSel = listdlg_selectWrapper(plotOpts, 'single', 'Plot What?');
-if sum(plotSel == 1:3)
+PLOTSEL = listdlg_selectWrapper(plotOpts, nvar, 'Plot What?');
+if ~(length(PLOTSEL) == analysisType)
+    error('Incorrect number of selections.')
+end
+
+fcn = cell(1,2);
+for idx = 1:length(PLOTSEL)
+plotSel = PLOTSEL(idx);
+neighborLayers = 0;
+if sum(plotSel == [4,6,7])
+    % percentile cutoff must be selected 
+    Pcut = inputdlg('Cutoff Percentile (%)','Network Cutoff Selection');
+    Pcut = str2num(Pcut{1});
+end
+while plotSel == length(plotOpts)
+    % Neighbors Average Value - of what?
+    neighborLayers = neighborLayers + 1;
+    yname = [yname, plotOpts{plotSel}];
+    plotSel = listdlg_selectWrapper(plotOpts, 'single', 'Average What?');
+end
+if sum(plotSel == 1:6)
+    % frequency band must be selected 
     [bnd,bndname] = pickFrequency();
-    yname = [bndname,' ',plotOpts{plotSel}];
-    fcn0 = fcnOpts{plotSel};
+    yname = [yname,bndname,' ',plotOpts{plotSel}];
     if sum(plotSel == [2,3])
+        fcn0 = fcnOpts{plotSel};
         bnd = band2freqs(bnd, BandTableHz);
-        fcn = @(Spec, EEG) frqFcnEpoch(Spec, EEG, @(w,P) fcn0(w,P,bnd));
+        fcn{idx} = @(Spec, EEG) frqFcnEpoch(Spec, EEG, @(w,P) fcn0(w,P,bnd));
         if plotSel == 3
             % Density 
             ylims = [0 1];
@@ -41,19 +75,49 @@ if sum(plotSel == 1:3)
         end
     elseif plotSel == 1
         % peak freq
-        fcn = @(Spec, EEG) peakFreqEpoch(Spec, EEG, bnd, BandTableHz);
+        fcn{idx} = @(Spec, EEG) peakFreqEpoch(Spec, EEG, bnd, BandTableHz);
         if isa(bnd,'char') | isa(bnd,'string')
             ylims = band2freqs(bnd, BandTableHz);
         else
             ylims = bnd;
         end
+    elseif plotSel == 6
+        % assortativity 
+        fcn{idx} = @(Spec, EEG) assortativity(Spec, EEG, bnd, Pcut, BandTableHz);
+        ylims = [-1, 1];
+    elseif plotSel == 4
+        % node degree
+        fcn{idx} = @(Spec, EEG) nodeDegree(Spec, EEG, Pcut, bnd, BandTableHz);
+        ylims = [0,EEG0.nbchan];
+    elseif plotSel == 5
+        % conn strength
+        fcn{idx} = @(Spec, EEG) connStrength(Spec, EEG, bnd, BandTableHz);
+        ylims = [];
     end
 end
+for l = 1:neighborLayers
+    fcn{idx} = @(Spec, EEG) avg_neighbor(Spec, EEG, fcn{idx}, Pcut, bnd, BandTableHz);
+end
+
+if analysisType == 2
+    if idx == 1
+        yname = [yname,' and '];
+    else
+        fcn = @(Spec, EEG) fcnCorr(fcn{1}, fcn{2}, Spec, EEG);
+        ylims = [-1, 1];
+    end
+else
+    fcn = fcn{1};
+end
+end
+
 [~,testVars] = listdlg_selectWrapper(...
     {'TempStim', 'PinPrick', 'Pressure', 'BaselineOpen', 'BaselineClosed', 'BaselineIce'}, ...
     'multiple', 'Specify Variable');
 
 %% baseline and calculations  
+mkdir(svloc);
+
 %table2baseline = @(tbl) [tbl.BaselineOpen('before experiment'),...
 %                         tbl.BaselineOpen('after experiment')];
 table2baseline = @(tbl) tbl.BaselineOpen('before experiment');
@@ -74,7 +138,7 @@ for subj = 1:length(scanfiles)
     BL = cell(size(BL_Epoch));
     for idx = 1:length(BL(:))
         if (~isempty(BL_Epoch{idx})) & (~isempty(BL_EpochSpec{idx}))
-            [t,Y] = fcn(BL_EpochSpec{idx}, BL_Epoch{idx});
+            [Y,t] = fcn(BL_EpochSpec{idx}, BL_Epoch{idx});
         end
         BL{idx} = cat(3,t,Y);
     end
@@ -135,6 +199,8 @@ for subj = 1:size(BLs,1)
     topoplot(BL(2,:), EEG.chanlocs, 'maplimits', ylims, 'electrodes','labels'); colorbar;
     title(['Subject ',pname]);
 end
+saveas(fig(1), [yname,'_Baseline_Bar_Plot'], 'fig');
+saveas(fig(2), [yname,'_Baseline_Head_Map'], 'fig');
 clear fig BL EEG W H
 
 %% determine max trial duration 
@@ -237,7 +303,7 @@ for v = testVars
     W = W+1; % plotting channel colors 
 
     disp('plotting time series')
-    figure; sgtitle([yname,' ',v{:}]);
+    fig = figure; sgtitle([yname,' ',v{:}]);
     idx3 = 0; 
     for subj = 1:length(scanfiles)
         idx3incr = false;
@@ -277,7 +343,7 @@ for v = testVars
                             end
                         end
                         %legend({chlocs.labels})
-                        %{
+                        %%{
                         for chan = 1:size(Y,2)
                             if chanSig(chan)
                                 tc = t(:,chan); Yc = Y(:,chan); 
@@ -306,12 +372,15 @@ for v = testVars
         end
         idx3 = idx3 + idx3incr;
     end
+    saveas(fig, [yname,'_',v{:},'_Trial_Time_Series'], 'fig');
     clear idx1 idx2 EEG_trial tY_trial EEGs tYs EEG tY t Y ttl ylbl strend ...
           chanSig chan chlocs tc Yc idx3 idx3incr;
 
+    BL = BLs{1,2};  
+    if size(BL,2) > 1
     disp('running hypothesis tests')
     W = W-1;
-    figure; sgtitle([yname,' ',v{:}]);
+    fig = figure; sgtitle([yname,' ',v{:}]);
     idx3 = 0;
     for subj = 1:length(scanfiles)
         idx3incr = false;
@@ -362,6 +431,8 @@ for v = testVars
         end
         idx3 = idx3 + idx3incr;
     end 
+    saveas(fig, [yname,'_',v{:},'_Trial_Head_Map'], 'fig');
+    end
     clear idx1 indx2 EEG_trial tY_trial EEGs tYs EEG tY Y_t Y BL BL_t...
           pp ttl ylbl strend chan y bl;
 end
@@ -370,6 +441,14 @@ end
 
 function subtbl = makeSubtbl(tbl, vars)
     subtbl = tbl(:, ismember(tbl.Properties.VariableNames, vars));
+end
+
+function t = getTimes(epoch_EEG)
+    if isempty(epoch_EEG)
+        t = [];
+    else
+        t = arrayfun(@(eeg) mean([eeg.xmin, eeg.xmax]), epoch_EEG);
+    end
 end
 
 function rgb = chanColor(chloc, chlocs)
@@ -427,6 +506,27 @@ function [sel, listOut] = listdlg_selectWrapper(list, SelectionMode, PromptStrin
         end
     end
     listOut = list(sel);
+end
+
+function [Y,t] = fcnCorr(fcn1, fcn2, var1, var2)
+    [Y1,t1] = fcn1(var1, var2); [Y2,t2] = fcn2(var1, var2);
+    Y1 = Y1'; Y2 = Y2'; t1 = t1'; t2 = t2';
+
+    t = sort(unique([t1(:);t2(:)]));
+    Y1 = cell2mat( arrayfun(@(c) ...
+        interp1(t1(c,:), Y1(c,:), t, 'linear', 'extrap'), ...
+        1:size(Y1,1), 'UniformOutput',false) )';
+    Y2 = cell2mat( arrayfun(@(c) ...
+        interp1(t2(c,:), Y2(c,:), t, 'linear', 'extrap'), ...
+        1:size(Y2,1), 'UniformOutput',false) )';
+
+    Y = zeros(size(Y1,1), length(t));
+    for s = 1:length(t)
+        Y(:,s) = corr(Y1(:,s), Y2(:,s), 'Type', 'Spearman', 'Rows', 'complete');
+    end
+
+    t = repmat(t, 1, size(Y,1));
+    Y = Y';
 end
 
 %% key functions 
@@ -492,7 +592,7 @@ function [tblOut, eegTbl, epochTbl, epochSpecTbl] = ...
             curSpec = epochSpecTbl{r,c}{:};
             curEpoc = epochTbl{r,c}{:};
             if ~isempty(curEpoc)
-                [t,Y] = fcn(curSpec, curEpoc);
+                [Y,t] = fcn(curSpec, curEpoc);
                 tblOut{r,c} = {cat(3,t,Y)};
                 eegTbl{r,c} = {eegTbl{r,c}{1}(1)};
             end
@@ -516,27 +616,121 @@ function plotEvents(EEG, ybound)
     end
 end
 
-function [times,Y] = frqFcnEpoch(epoch_Spec, epoch_EEG, fcn)
+%% time-frequency functions 
+
+function [Y,times] = frqFcnEpoch(epoch_Spec, epoch_EEG, fcn)
     Y = cell2mat( arrayfun(@(eegSpec) ...
         fcn(eegSpec.frequency1side, eegSpec.powerSpectrum), ...
-        epoch_Spec(2:end), 'UniformOutput', false) );
-    times = arrayfun(@(eeg) mean([eeg.xmin, eeg.xmax]), epoch_EEG(2:end));
+        epoch_Spec, 'UniformOutput', false) );
+    times = getTimes(epoch_EEG);
     times = repmat(times,size(Y,1),1);
     times = times'; Y = Y';
 end
 
-function [times,Freq] = peakFreqEpoch(epoch_Spec, epoch_EEG, bnd, tbl)
+function [Freq,times] = peakFreqEpoch(epoch_Spec, epoch_EEG, bnd, tbl)
 % inspect peakFreq across epochs (time)
-    % index 1 = original 
     nchan = epoch_Spec(1).nbchan;
-    PAFs = zeros(nchan, length(epoch_Spec)-1, 2);
+    PAFs = zeros(nchan, length(epoch_Spec), 2);
     for chan = 1:nchan
         PAFs(chan,:,1) = arrayfun(@(eegSpec) ...
             peakFreq(eegSpec.frequency1side, eegSpec.powerSpectrum(chan,:), ...
             bnd, tbl), ...
-            epoch_Spec(2:end));
+            epoch_Spec);
         PAFs(chan,:,2) = arrayfun(@(eeg) ...
-            mean([eeg.xmin, eeg.xmax]), epoch_EEG(2:end));
+            mean([eeg.xmin, eeg.xmax]), epoch_EEG);
     end
     times = PAFs(:,:,2)'; Freq = PAFs(:,:,1)';
+end
+
+%% network functions 
+
+function [nd,t] = nodeDegree(SpectObj, EEGObj, cutoffPercentile, bnd, tbl)
+    if nargin < 5
+        tbl = [];
+        if nargin < 4
+            bnd = [];
+            if nargin < 3
+                cutoffPercentile = [];
+            end
+        end
+    end
+    nd = zeros(SpectObj(1).nbchan,length(SpectObj));
+    for s = 1:length(SpectObj)
+        [W,A] = WPLI(SpectObj(s).frequencySpectrum, cutoffPercentile, ...
+            bnd, SpectObj(s).frequency2side, tbl);
+        nd(:,s) = sum(A);
+    end
+    t = getTimes(EEGObj);
+    t = repmat(t, size(nd,1), 1); 
+    nd = nd'; t = t';
+end
+
+function [cs,t] = connStrength(SpectObj, EEGObj, bnd, tbl)
+    if nargin < 4
+        tbl = [];
+        if nargin < 3
+            bnd = [];
+        end
+    end
+    % each channel's average WPLI with all others 
+    cs = zeros(SpectObj(1).nbchan,length(SpectObj));
+    for s = 1:length(SpectObj)
+        W = WPLI(SpectObj(s).frequencySpectrum, [], bnd, SpectObj(s).frequency2side, tbl);
+        cs(:,s) = mean(W, 'omitnan');
+    end
+    t = getTimes(EEGObj);
+    t = repmat(t, size(cs,1), 1); 
+    cs = cs'; t = t';
+end
+
+function [A,t] = avg_neighbor(SpectObj, EEGObj, neighborFcn, cutoffPercentile, bnd, tbl)
+    if nargin < 6
+        tbl = [];
+        if nargin < 5
+            bnd = [];
+            if nargin < 4
+                cutoffPercentile = [];
+            end
+        end
+    end
+    Y = neighborFcn(SpectObj, EEGObj); Y = Y';
+    A = zeros(size(Y));
+    for s = 1:length(SpectObj)
+        [~,Adj] = WPLI(SpectObj(s).frequencySpectrum, cutoffPercentile, bnd, ...
+            SpectObj(s).frequency2side, tbl);
+        A(:,s) = arrayfun(@(c) mean(Y(Adj(:,c),s)), 1:size(Y,1));
+    end
+    t = getTimes(EEGObj);
+    t = repmat(t, size(A,1), 1); 
+    A = A'; t = t';
+end
+
+function [Af,t] = assortativity(SpectObj, EEGObj, bnd, cutoffPercentile, tbl)
+    % 1D
+    if nargin < 5
+        if ~exist('BandTableHz')
+            load('BrainwaveFrequencyTable.mat');
+            global BandTableHz
+        end
+        tbl = BandTableHz;
+        if nargin < 4
+            cutoffPercentile = [];
+            if nargin < 3
+                bnd = [];
+                if nargin < 2
+                    EEGObj = [];
+                end
+            end
+        end
+    end
+    Af = zeros(size(SpectObj));
+    for s = 1:length(SpectObj)
+        [~,Adj] = WPLI(SpectObj(s).frequencySpectrum, cutoffPercentile, bnd, ...
+            SpectObj(s).frequency2side, tbl);
+        [~,PF] = diffFreq(SpectObj(s).frequency1side, SpectObj(s).powerSpectrum, bnd, tbl);
+        y = arrayfun(@(c) mean(PF(Adj(:,c))), 1:length(PF));
+        Af(s) = corr(PF', y', 'Type','Spearman', 'Rows', 'complete');
+    end
+    t = getTimes(EEGObj);
+    Af = Af'; t = t';
 end
