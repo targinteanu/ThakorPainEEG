@@ -88,7 +88,7 @@ if sum(plotSel == 1:6)
     elseif plotSel == 4
         % node degree
         fcn{idx} = @(Spec, EEG) nodeDegree(Spec, EEG, Pcut, bnd, BandTableHz);
-        ylims = [0,EEG0.nbchan];
+        ylims = 'numchan';
     elseif plotSel == 5
         % conn strength
         fcn{idx} = @(Spec, EEG) connStrength(Spec, EEG, bnd, BandTableHz);
@@ -192,16 +192,25 @@ for subj = 1:size(BLs,1)
     xticks(1:length(BL(2,:)));
     xticklabels({EEG.chanlocs.labels}); xlabel('Channel'); ylabel(yname);
     title(['Subject ',pname,' Baseline']);
-    ylim(ylims);
-
+    if ~isempty(ylims)
+        if strcmp(ylims, 'numchan')
+            templims = [0,size(BL,2)];
+        else
+            templims = ylims;
+        end
+        ylim(templims);
+    else
+        templims = 'maxmin';
+    end
+        
     figure(fig(2)); sgtitle(['Baseline ',yname]);
     subplot(W,H,subj); 
-    topoplot(BL(2,:), EEG.chanlocs, 'maplimits', ylims, 'electrodes','labels'); colorbar;
+    topoplot(BL(2,:), EEG.chanlocs, 'maplimits', templims, 'electrodes','labels'); colorbar;
     title(['Subject ',pname]);
 end
 saveas(fig(1), [yname,'_Baseline_Bar_Plot'], 'fig');
 saveas(fig(2), [yname,'_Baseline_Head_Map'], 'fig');
-clear fig BL EEG W H
+clear fig BL EEG W H templims
 
 %% determine max trial duration 
 disp('determining trial durations')
@@ -331,8 +340,20 @@ for v = testVars
                         idx2 = (idx3)*W + idx1; idx3incr = true;
                         subplot(H,W,idx2);
                         ttl = [EEG_trial.Properties.RowNames{r},' trial ',num2str(trl)];
-                        plotEvents(EEG, ylims);
-                        title(ttl); ylim(ylims); ylabel(ylbl); xlabel('time (s)');
+                        
+                        if ~isempty(ylims)
+                            if strcmp(ylims, 'numchan')
+                                templims = [0,size(BL,2)];
+                            else
+                                templims = ylims;
+                            end
+                            ylim(templims);
+                        else
+                            templims = [min([BL(:);Y(:)]), max([BL(:);Y(:)])];
+                        end
+                        
+                        plotEvents(EEG, templims);
+                        title(ttl); ylim(templims); ylabel(ylbl); xlabel('time (s)');
 
                         for chan = 1:size(Y,2)
                             if chanSig(chan)
