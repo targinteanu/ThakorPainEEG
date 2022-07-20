@@ -76,7 +76,7 @@ for ps = plotSel
                 maplims = 'maxmin';
             end
 
-            network_headmap(Spec_table, {fn,fcnSelName}, fcnSel, maplims, ...
+            network_headmap(Spec_table, {fn,[bndname,' ',fcnSelName]}, fcnSel, maplims, ...
                 selVars, selRows);
         end
 
