@@ -19,28 +19,44 @@ load([fp, '/', fn]);
 EEG0 = EEG_table.BaselineOpen('before experiment'); EEG0 = EEG0{1}(1);
 
 %% first plot
-clear fcn yname ylims
+clear fcn fcn0 yname ylims idx Pcut
 
 meanAmp = @(w,P,band) mean(P(:, ( (w >= band(1))&(w <= band(2)) )), 2);
 ampDensity = @(w,P,band) sum(P(:, ( (w >= band(1))&(w <= band(2)) )), 2) ./ sum(P,2);
 plotOpts = {'Peak Freq (Hz)', 'Band Mean (\muV^2 s^2)', 'Band Density', ...
             'Node Degree', 'Connectivity Strength', 'Frequency Assortativity', ...
             'Neighbors Average '};
-yname = [];
+analysisOpts = {'single variable', 'correlation'};
+analysisType = questdlg('Calculate What?', 'Analysis Type', ...
+                        analysisOpts{1}, analysisOpts{2}, analysisOpts{1});
+analysisType = find(strcmp(analysisType, analysisOpts));
+if analysisType == 1
+    nvar = 'single';
+    yname = [];
+elseif analysisType == 2
+    nvar = 'multiple';
+    yname = 'Correlation Between ';
+end
 fcnOpts = {@(w,P,band) peakFreq(w,P,band), meanAmp, ampDensity};
-plotSel = listdlg_selectWrapper(plotOpts, 'single', 'Plot What?');
+PLOTSEL = listdlg_selectWrapper(plotOpts, nvar, 'Plot What?');
+if ~(length(PLOTSEL) == analysisType)
+    error('Incorrect number of selections.')
+end
 
+fcn = cell(1,2);
+for idx = 1:length(PLOTSEL)
+plotSel = PLOTSEL(idx);
 neighborLayers = 0;
+if sum(plotSel == [4,6,7])
+    % percentile cutoff must be selected 
+    Pcut = inputdlg('Cutoff Percentile (%)','Network Cutoff Selection');
+    Pcut = str2num(Pcut{1});
+end
 while plotSel == length(plotOpts)
     % Neighbors Average Value - of what?
     neighborLayers = neighborLayers + 1;
     yname = [yname, plotOpts{plotSel}];
     plotSel = listdlg_selectWrapper(plotOpts, 'single', 'Average What?');
-end
-if sum(plotSel == [4,6,7])
-    % percentile cutoff must be selected 
-    Pcut = inputdlg('Cutoff Percentile (%)','Network Cutoff Selection');
-    Pcut = str2num(Pcut{1});
 end
 if sum(plotSel == 1:6)
     % frequency band must be selected 
@@ -49,7 +65,7 @@ if sum(plotSel == 1:6)
     if sum(plotSel == [2,3])
         fcn0 = fcnOpts{plotSel};
         bnd = band2freqs(bnd, BandTableHz);
-        fcn = @(Spec, EEG) frqFcnEpoch(Spec, EEG, @(w,P) fcn0(w,P,bnd));
+        fcn{idx} = @(Spec, EEG) frqFcnEpoch(Spec, EEG, @(w,P) fcn0(w,P,bnd));
         if plotSel == 3
             % Density 
             ylims = [0 1];
@@ -58,7 +74,7 @@ if sum(plotSel == 1:6)
         end
     elseif plotSel == 1
         % peak freq
-        fcn = @(Spec, EEG) peakFreqEpoch(Spec, EEG, bnd, BandTableHz);
+        fcn{idx} = @(Spec, EEG) peakFreqEpoch(Spec, EEG, bnd, BandTableHz);
         if isa(bnd,'char') | isa(bnd,'string')
             ylims = band2freqs(bnd, BandTableHz);
         else
@@ -66,21 +82,34 @@ if sum(plotSel == 1:6)
         end
     elseif plotSel == 6
         % assortativity 
-        fcn = @(Spec, EEG) assortativity(Spec, EEG, bnd, Pcut, BandTableHz);
+        fcn{idx} = @(Spec, EEG) assortativity(Spec, EEG, bnd, Pcut, BandTableHz);
         ylims = [-1, 1];
     elseif plotSel == 4
         % node degree
-        fcn = @(Spec, EEG) nodeDegree(Spec, EEG, Pcut, bnd, BandTableHz);
+        fcn{idx} = @(Spec, EEG) nodeDegree(Spec, EEG, Pcut, bnd, BandTableHz);
         ylims = [0,EEG0.nbchan];
     elseif plotSel == 5
         % conn strength
-        fcn = @(Spec, EEG) connStrength(Spec, EEG, bnd, BandTableHz);
+        fcn{idx} = @(Spec, EEG) connStrength(Spec, EEG, bnd, BandTableHz);
         ylims = [];
     end
 end
 for l = 1:neighborLayers
-    fcn = @(Spec, EEG) avg_neighbor(Spec, EEG, fcn, Pcut, bnd, BandTableHz);
+    fcn{idx} = @(Spec, EEG) avg_neighbor(Spec, EEG, fcn{idx}, Pcut, bnd, BandTableHz);
 end
+
+if analysisType == 2
+    if idx == 1
+        yname = [yname,' and '];
+    else
+        fcn = @(Spec, EEG) fcnCorr(fcn{1}, fcn{2}, Spec, EEG);
+        ylims = [-1, 1];
+    end
+else
+    fcn = fcn{1};
+end
+end
+
 AllPlot_table = plotTbl(EEG_table, Epoch_table, EpochSpec_table, fcn, ylims, ...
     yname, fn);
 
@@ -169,6 +198,27 @@ function [sel, listOut] = listdlg_selectWrapper(list, SelectionMode, PromptStrin
     listOut = list(sel);
 end
 
+function [Y,t] = fcnCorr(fcn1, fcn2, var1, var2)
+    [Y1,t1] = fcn1(var1, var2); [Y2,t2] = fcn2(var1, var2);
+    Y1 = Y1'; Y2 = Y2'; t1 = t1'; t2 = t2';
+
+    t = sort(unique([t1(:);t2(:)]));
+    Y1 = cell2mat( arrayfun(@(c) ...
+        interp1(t1(c,:), Y1(c,:), t, 'linear', 'extrap'), ...
+        1:size(Y1,1), 'UniformOutput',false) )';
+    Y2 = cell2mat( arrayfun(@(c) ...
+        interp1(t2(c,:), Y2(c,:), t, 'linear', 'extrap'), ...
+        1:size(Y2,1), 'UniformOutput',false) )';
+
+    Y = zeros(size(Y1,1), length(t));
+    for s = 1:length(t)
+        Y(:,s) = corr(Y1(:,s), Y2(:,s), 'Type', 'Spearman', 'Rows', 'complete');
+    end
+
+    t = repmat(t, 1, size(Y,1));
+    Y = Y';
+end
+
 %% key functions 
 
 function [tblOut, toTestTbl, eegTbl, fig] = ...
@@ -233,7 +283,7 @@ function [tblOut, eegTbl, epochTbl, epochSpecTbl, fig] = ...
         end
     end
     
-    tblOut = epochTbl; fig = figure; sgtitle(sttl);
+    tblOut = epochTbl; fig = figure; sgtitle({sttl, yname});
     W = height(epochTbl); H = width(epochTbl); idx = 1;
     for c = 1:H
         for r = 1:W
@@ -246,7 +296,7 @@ function [tblOut, eegTbl, epochTbl, epochSpecTbl, fig] = ...
                 tblOut{r,c} = {cat(3,t,Y)};
                 subplot(H,W,idx); 
                 ttl = [epochTbl.Properties.VariableNames{c},' ',epochTbl.Properties.RowNames{r}];
-                plotWithEvents(t, Y, EEG, ybound, ttl, yname);
+                plotWithEvents(t, Y, EEG, ybound, ttl, '');
             elseif ~isempty(curEpoc)
                 tblOut{r,c} = {[]};
             end
@@ -402,7 +452,7 @@ function [Af,t] = assortativity(SpectObj, EEGObj, bnd, cutoffPercentile, tbl)
             SpectObj(s).frequency2side, tbl);
         [~,PF] = diffFreq(SpectObj(s).frequency1side, SpectObj(s).powerSpectrum, bnd, tbl);
         y = arrayfun(@(c) mean(PF(Adj(:,c))), 1:length(PF));
-        Af(s) = corr(PF', y', 'Type','Spearman');
+        Af(s) = corr(PF', y', 'Type','Spearman', 'Rows', 'complete');
     end
     t = getTimes(EEGObj);
     Af = Af'; t = t';
