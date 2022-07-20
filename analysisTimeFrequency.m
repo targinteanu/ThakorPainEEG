@@ -40,7 +40,11 @@ end
 fcnOpts = {@(w,P,band) peakFreq(w,P,band), meanAmp, ampDensity};
 PLOTSEL = listdlg_selectWrapper(plotOpts, nvar, 'Plot What?');
 if ~(length(PLOTSEL) == analysisType)
-    error('Incorrect number of selections.')
+    if (analysisType == 2) & (length(PLOTSEL) == 1)
+        PLOTSEL = [PLOTSEL, PLOTSEL];
+    else
+        error('Incorrect number of selections.')
+    end
 end
 
 fcn = cell(1,2);
@@ -210,13 +214,10 @@ function [Y,t] = fcnCorr(fcn1, fcn2, var1, var2)
         interp1(t2(c,:), Y2(c,:), t, 'linear', 'extrap'), ...
         1:size(Y2,1), 'UniformOutput',false) )';
 
-    Y = zeros(size(Y1,1), length(t));
+    Y = zeros(length(t),1);
     for s = 1:length(t)
-        Y(:,s) = corr(Y1(:,s), Y2(:,s), 'Type', 'Spearman', 'Rows', 'complete');
+        Y(s) = corr(Y1(:,s), Y2(:,s), 'Type', 'Spearman', 'Rows', 'complete');
     end
-
-    t = repmat(t, 1, size(Y,1));
-    Y = Y';
 end
 
 %% key functions 

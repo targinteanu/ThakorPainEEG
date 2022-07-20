@@ -19,11 +19,11 @@ scanfiles = scanfiles((~strcmp({scanfiles.name},'.')) & (~strcmp({scanfiles.name
 cd(home); addpath(postproDir);
 svloc = [postproDir,'/Stats ',...
     datestr(datetime, 'yyyy-mm-dd HH.MM.SS')];
+mkdir(svloc); svloc = [svloc,'/'];
 
 %% select what to plot
 meanAmp = @(w,P,band) mean(P(:, ( (w >= band(1))&(w <= band(2)) )), 2);
 ampDensity = @(w,P,band) sum(P(:, ( (w >= band(1))&(w <= band(2)) )), 2) ./ sum(P,2);
-plotOpts = {'Peak Freq (Hz)', 'Band Mean (\muV^2 s^2)', 'Band Density'};
 plotOpts = {'Peak Freq (Hz)', 'Band Mean (\muV^2 s^2)', 'Band Density', ...
             'Node Degree', 'Connectivity Strength', 'Frequency Assortativity', ...
             'Neighbors Average '};
@@ -41,7 +41,11 @@ end
 fcnOpts = {@(w,P,band) peakFreq(w,P,band), meanAmp, ampDensity};
 PLOTSEL = listdlg_selectWrapper(plotOpts, nvar, 'Plot What?');
 if ~(length(PLOTSEL) == analysisType)
-    error('Incorrect number of selections.')
+    if (analysisType == 2) & (length(PLOTSEL) == 1)
+        PLOTSEL = [PLOTSEL, PLOTSEL];
+    else
+        error('Incorrect number of selections.')
+    end
 end
 
 fcn = cell(1,2);
@@ -116,8 +120,6 @@ end
     'multiple', 'Specify Variable');
 
 %% baseline and calculations  
-mkdir(svloc);
-
 %table2baseline = @(tbl) [tbl.BaselineOpen('before experiment'),...
 %                         tbl.BaselineOpen('after experiment')];
 table2baseline = @(tbl) tbl.BaselineOpen('before experiment');
@@ -190,7 +192,6 @@ for subj = 1:size(BLs,1)
     hold on; errorbar(BL(2,:), BL(3,:) - BL(2,:), ...
         '.k', 'LineWidth',1);
     xticks(1:length(BL(2,:)));
-    xticklabels({EEG.chanlocs.labels}); xlabel('Channel'); ylabel(yname);
     title(['Subject ',pname,' Baseline']);
     if ~isempty(ylims)
         if strcmp(ylims, 'numchan')
@@ -202,15 +203,19 @@ for subj = 1:size(BLs,1)
     else
         templims = 'maxmin';
     end
+
+    if length(BL(2,:)) > 1
+        xticklabels({EEG.chanlocs.labels}); xlabel('Channel'); ylabel(yname);
         
-    figure(fig(2)); sgtitle(['Baseline ',yname]);
-    subplot(W,H,subj); 
-    topoplot(BL(2,:), EEG.chanlocs, 'maplimits', templims, 'electrodes','labels'); colorbar;
-    title(['Subject ',pname]);
+        figure(fig(2)); sgtitle(['Baseline ',yname]);
+        subplot(W,H,subj); 
+        topoplot(BL(2,:), EEG.chanlocs, 'maplimits', templims, 'electrodes','labels'); colorbar;
+        title(['Subject ',pname]);
+    end
 end
-saveas(fig(1), [yname,'_Baseline_Bar_Plot'], 'fig');
-saveas(fig(2), [yname,'_Baseline_Head_Map'], 'fig');
-clear fig BL EEG W H templims
+saveas(fig(1), [svloc,yname,'_Baseline_Bar_Plot'], 'fig');
+saveas(fig(2), [svloc,yname,'_Baseline_Head_Map'], 'fig');
+clear fig BL EEG EEGrc W H templims
 
 %% determine max trial duration 
 disp('determining trial durations')
@@ -351,7 +356,7 @@ for v = testVars
                         else
                             templims = [min([BL(:);Y(:)]), max([BL(:);Y(:)])];
                         end
-                        
+
                         plotEvents(EEG, templims);
                         title(ttl); ylim(templims); ylabel(ylbl); xlabel('time (s)');
 
@@ -371,7 +376,7 @@ for v = testVars
                                 fill([min(tc),min(tc),max(tc),max(tc)],...
                                      [BL(1,chan),BL(3,chan),BL(3,chan),BL(1,chan)],...
                                      chanColor(chlocs(chan), chlocs),...
-                                     'FaceAlpha',baselineTransparency);
+                                     'FaceAlpha',baselineTransparency, 'EdgeColor','none');
                             end
                         end
                         %}
@@ -393,7 +398,7 @@ for v = testVars
         end
         idx3 = idx3 + idx3incr;
     end
-    saveas(fig, [yname,'_',v{:},'_Trial_Time_Series'], 'fig');
+    saveas(fig, [svloc,yname,'_',v{:},'_Trial_Time_Series'], 'fig');
     clear idx1 idx2 EEG_trial tY_trial EEGs tYs EEG tY t Y ttl ylbl strend ...
           chanSig chan chlocs tc Yc idx3 idx3incr;
 
@@ -452,7 +457,7 @@ for v = testVars
         end
         idx3 = idx3 + idx3incr;
     end 
-    saveas(fig, [yname,'_',v{:},'_Trial_Head_Map'], 'fig');
+    saveas(fig, [svloc,yname,'_',v{:},'_Trial_Head_Map'], 'fig');
     end
     clear idx1 indx2 EEG_trial tY_trial EEGs tYs EEG tY Y_t Y BL BL_t...
           pp ttl ylbl strend chan y bl;
@@ -541,13 +546,10 @@ function [Y,t] = fcnCorr(fcn1, fcn2, var1, var2)
         interp1(t2(c,:), Y2(c,:), t, 'linear', 'extrap'), ...
         1:size(Y2,1), 'UniformOutput',false) )';
 
-    Y = zeros(size(Y1,1), length(t));
+    Y = zeros(length(t),1);
     for s = 1:length(t)
-        Y(:,s) = corr(Y1(:,s), Y2(:,s), 'Type', 'Spearman', 'Rows', 'complete');
+        Y(s) = corr(Y1(:,s), Y2(:,s), 'Type', 'Spearman', 'Rows', 'complete');
     end
-
-    t = repmat(t, 1, size(Y,1));
-    Y = Y';
 end
 
 %% key functions 
