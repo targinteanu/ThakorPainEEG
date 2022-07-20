@@ -37,7 +37,7 @@ while plotSel == length(plotOpts)
     yname = [yname, plotOpts{plotSel}];
     plotSel = listdlg_selectWrapper(plotOpts, 'single', 'Average What?');
 end
-if sum(plotSel == [4,6])
+if sum(plotSel == [4,6,7])
     % percentile cutoff must be selected 
     Pcut = inputdlg('Cutoff Percentile (%)','Network Cutoff Selection');
     Pcut = str2num(Pcut{1});
@@ -79,7 +79,7 @@ if sum(plotSel == 1:6)
     end
 end
 for l = 1:neighborLayers
-    fcn = @(Spec, EEG) avg_neighbor(Spec, EEG, fcn(Spec, EEG), bnd, BandTableHz);
+    fcn = @(Spec, EEG) avg_neighbor(Spec, EEG, fcn, Pcut, bnd, BandTableHz);
 end
 AllPlot_table = plotTbl(EEG_table, Epoch_table, EpochSpec_table, fcn, ylims, ...
     yname, fn);
@@ -356,11 +356,14 @@ function [cs,t] = connStrength(SpectObj, EEGObj, bnd, tbl)
     cs = cs'; t = t';
 end
 
-function [A,t] = avg_neighbor(SpectObj, EEGObj, neighborFcn, bnd, tbl)
-    if nargin < 5
+function [A,t] = avg_neighbor(SpectObj, EEGObj, neighborFcn, cutoffPercentile, bnd, tbl)
+    if nargin < 6
         tbl = [];
-        if nargin < 4
+        if nargin < 5
             bnd = [];
+            if nargin < 4
+                cutoffPercentile = [];
+            end
         end
     end
     Y = neighborFcn(SpectObj, EEGObj); Y = Y';
@@ -371,7 +374,7 @@ function [A,t] = avg_neighbor(SpectObj, EEGObj, neighborFcn, bnd, tbl)
         A(:,s) = arrayfun(@(c) mean(Y(Adj(:,c),s)), 1:size(Y,1));
     end
     t = getTimes(EEGObj);
-    t = repmat(t, size(nd,1), 1); 
+    t = repmat(t, size(A,1), 1); 
     A = A'; t = t';
 end
 
