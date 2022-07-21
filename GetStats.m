@@ -132,7 +132,6 @@ BLs = cell(length(scanfiles),2);
 for subj = 1:length(scanfiles)
     fn = scanfiles{subj}
     load(fn);
-
     % get stats on baseline 
     disp('calculating baseline statistics')
     BL_Epoch = table2baseline(Epoch_table);
@@ -161,7 +160,8 @@ for subj = 1:length(scanfiles)
 end
 
 %% graph baselines of each subj 
-fig(2) = figure; fig(1) = figure;
+fig(2) = figure; sgtitle(['Baseline ',yname]);
+fig(1) = figure; sgtitle(['Baseline ',yname]);
 for subj = 1:size(BLs,1)
     fn = scanfiles{subj};
     strend = find(fn == '-'); strend = strend((diff(strend)==1)); strend = max(1, strend(1)-2);
@@ -207,7 +207,7 @@ for subj = 1:size(BLs,1)
     if length(BL(2,:)) > 1
         xticklabels({EEG.chanlocs.labels}); xlabel('Channel'); ylabel(yname);
         
-        figure(fig(2)); sgtitle(['Baseline ',yname]);
+        figure(fig(2)); 
         subplot(W,H,subj); 
         topoplot(BL(2,:), EEG.chanlocs, 'maplimits', templims, 'electrodes','labels'); colorbar;
         title(['Subject ',pname]);
@@ -539,12 +539,14 @@ function [Y,t] = fcnCorr(fcn1, fcn2, var1, var2)
     Y1 = Y1'; Y2 = Y2'; t1 = t1'; t2 = t2';
 
     t = sort(unique([t1(:);t2(:)]));
-    Y1 = cell2mat( arrayfun(@(c) ...
-        interp1(t1(c,:), Y1(c,:), t, 'linear', 'extrap'), ...
-        1:size(Y1,1), 'UniformOutput',false) )';
-    Y2 = cell2mat( arrayfun(@(c) ...
-        interp1(t2(c,:), Y2(c,:), t, 'linear', 'extrap'), ...
-        1:size(Y2,1), 'UniformOutput',false) )';
+    if length(t) > 1
+        Y1 = cell2mat( arrayfun(@(c) ...
+            interp1(t1(c,:), Y1(c,:), t, 'linear', 'extrap'), ...
+            1:size(Y1,1), 'UniformOutput',false) )';
+        Y2 = cell2mat( arrayfun(@(c) ...
+            interp1(t2(c,:), Y2(c,:), t, 'linear', 'extrap'), ...
+            1:size(Y2,1), 'UniformOutput',false) )';
+    end
 
     Y = zeros(length(t),1);
     for s = 1:length(t)
