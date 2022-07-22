@@ -174,9 +174,12 @@ fig(2) = figure; sgtitle(['Baseline ',yname]);
 fig(1) = figure; sgtitle(['Baseline ',yname]);
 for subj = 1:size(BLs,1)
     fn = scanfiles{subj};
+    %{
     strend = find(fn == '-'); strend = strend((diff(strend)==1)); strend = max(1, strend(1)-2);
     pname = fn(1:strend);
     pname = pname((end-2):end);
+    %}
+    pname = fn(1:3);
 
     % replace with more robust
     %EEG = dataTables{subj,2}{1,1}{1}(1); 
@@ -332,9 +335,12 @@ for v = testVars
     for subj = 1:length(scanfiles)
         idx3incr = false;
         fn = scanfiles{subj}
+        %{
         strend = find(fn == '-'); strend = strend((diff(strend)==1)); strend = max(1, strend(1)-2);
         ylbl = fn(1:strend);
         ylbl = ylbl((end-2):end);
+        %}
+        ylbl = fn(1:3);
 
         BL = BLs{subj,1};
         EEG_trial = trialTables{subj,2}; EEG_trial = makeSubtbl(EEG_trial, v);
@@ -421,9 +427,12 @@ for v = testVars
     for subj = 1:length(scanfiles)
         idx3incr = false;
         fn = scanfiles{subj}
+        %{
         strend = find(fn == '-'); strend = strend((diff(strend)==1)); strend = max(1, strend(1)-2);
         ylbl = fn(1:strend);
         ylbl = ylbl((end-2):end);
+        %}
+        ylbl = fn(1:3);
 
         EEG_trial = trialTables{subj,2}; EEG_trial = makeSubtbl(EEG_trial, v);
         tY_trial  = trialTables{subj,1}; tY_trial  = makeSubtbl(tY_trial,  v);
