@@ -13,7 +13,10 @@ postproDir = uigetdir;
 
 cd(postproDir);
 scanfiles = dir; 
-scanfiles = scanfiles((~strcmp({scanfiles.name},'.')) & (~strcmp({scanfiles.name},'..')));
+scanfiles = scanfiles((~strcmp({scanfiles.name},'.')) & ...
+                      (~strcmp({scanfiles.name},'..')) & ...
+                      (~strcmp({scanfiles.name},'.DS_Store')) );
+scanfiles = scanfiles(~[scanfiles.isdir]);
 [~,scanfiles] = listdlg_selectWrapper({scanfiles.name},'multiple');
 
 cd(home); addpath(postproDir);
