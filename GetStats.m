@@ -534,7 +534,7 @@ function [sel, listOut] = listdlg_selectWrapper(list, SelectionMode, PromptStrin
     listOut = list(sel);
 end
 
-function [Y,t] = fcnCorr(fcn1, fcn2, var1, var2)
+function [Y,t,Y1,Y2] = fcnCorr(fcn1, fcn2, var1, var2)
     [Y1,t1] = fcn1(var1, var2); [Y2,t2] = fcn2(var1, var2);
     Y1 = Y1'; Y2 = Y2'; t1 = t1'; t2 = t2';
 
