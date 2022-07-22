@@ -25,7 +25,8 @@ mkdir(svloc); svloc = [svloc,'/'];
 meanAmp = @(w,P,band) mean(P(:, ( (w >= band(1))&(w <= band(2)) )), 2);
 ampDensity = @(w,P,band) sum(P(:, ( (w >= band(1))&(w <= band(2)) )), 2) ./ sum(P,2);
 plotOpts = {'Peak Freq (Hz)', 'Band Mean (\muV^2 s^2)', 'Band Density', ...
-            'Node Degree', 'Connectivity Strength', 'Frequency Assortativity', ...
+            'Node Degree', 'Connectivity Strength', 'Frequency Difference', ...
+            'Frequency Assortativity', ...
             'Neighbors Average '};
 analysisOpts = {'single variable', 'correlation'};
 analysisType = questdlg('Calculate What?', 'Analysis Type', ...
@@ -52,7 +53,7 @@ fcn = cell(1,2);
 for idx = 1:length(PLOTSEL)
 plotSel = PLOTSEL(idx);
 neighborLayers = 0;
-if sum(plotSel == [4,6,7])
+if sum(plotSel == [4,7,8])
     % percentile cutoff must be selected 
     Pcut = inputdlg('Cutoff Percentile (%)','Network Cutoff Selection');
     Pcut = str2num(Pcut{1});
@@ -63,7 +64,7 @@ while plotSel == length(plotOpts)
     yname = [yname, plotOpts{plotSel}];
     plotSel = listdlg_selectWrapper(plotOpts, 'single', 'Average What?');
 end
-if sum(plotSel == 1:6)
+if sum(plotSel == 1:7)
     % frequency band must be selected 
     [bnd,bndname] = pickFrequency();
     yname = [yname,bndname,' ',plotOpts{plotSel}];
@@ -85,7 +86,7 @@ if sum(plotSel == 1:6)
         else
             ylims = bnd;
         end
-    elseif plotSel == 6
+    elseif plotSel == 7
         % assortativity 
         fcn{idx} = @(Spec, EEG) assortativity(Spec, EEG, bnd, Pcut, BandTableHz);
         ylims = [-1, 1];
@@ -95,8 +96,14 @@ if sum(plotSel == 1:6)
         ylims = 'numchan';
     elseif plotSel == 5
         % conn strength
-        fcn{idx} = @(Spec, EEG) connStrength(Spec, EEG, bnd, BandTableHz);
+        fcn{idx} = @(Spec, EEG) avg_node(Spec, EEG, ...
+            @(w,F) WPLI(F, [], bnd, w, BandTableHz) );
         ylims = [];
+    elseif plotSel == 6
+        % Freq Diff 
+        fcn{idx} = @(Spec, EEG) avg_node(Spec, EEG, ...
+            @(w,F) diffFreq(w, F, bnd, BandTableHz) );
+        ylims = [0, 1];
     end
 end
 for l = 1:neighborLayers
@@ -690,22 +697,16 @@ function [nd,t] = nodeDegree(SpectObj, EEGObj, cutoffPercentile, bnd, tbl)
     nd = nd'; t = t';
 end
 
-function [cs,t] = connStrength(SpectObj, EEGObj, bnd, tbl)
-    if nargin < 4
-        tbl = [];
-        if nargin < 3
-            bnd = [];
-        end
-    end
-    % each channel's average WPLI with all others 
-    cs = zeros(SpectObj(1).nbchan,length(SpectObj));
+function [A,t] = avg_node(SpectObj, EEGObj, nodeFcn)
+    % each channel's average nodeFcn with all others 
+    A = zeros(SpectObj(1).nbchan,length(SpectObj));
     for s = 1:length(SpectObj)
-        W = WPLI(SpectObj(s).frequencySpectrum, [], bnd, SpectObj(s).frequency2side, tbl);
-        cs(:,s) = mean(W, 'omitnan');
+        W = nodeFcn(SpectObj(s).frequency2side, SpectObj(s).frequencySpectrum);
+        A(:,s) = mean(W, 'omitnan');
     end
     t = getTimes(EEGObj);
-    t = repmat(t, size(cs,1), 1); 
-    cs = cs'; t = t';
+    t = repmat(t, size(A,1), 1); 
+    A = A'; t = t';
 end
 
 function [A,t] = avg_neighbor(SpectObj, EEGObj, neighborFcn, cutoffPercentile, bnd, tbl)
