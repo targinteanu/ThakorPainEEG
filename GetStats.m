@@ -100,12 +100,12 @@ if sum(plotSel == 1:7)
     elseif plotSel == 5
         % conn strength
         fcn{idx} = @(Spec, EEG) avg_node(Spec, EEG, ...
-            @(w,F) WPLI(F, [], bnd, w, BandTableHz) );
+            @(SO) WPLI(SO.frequencySpectrum, [], bnd, SO.frequency2side, BandTableHz) );
         ylims = [];
     elseif plotSel == 6
         % Freq Diff 
         fcn{idx} = @(Spec, EEG) avg_node(Spec, EEG, ...
-            @(w,F) diffFreq(w, F, bnd, BandTableHz) );
+            @(SO) diffFreq(SO.frequency1side, SO.powerSpectrum, bnd, BandTableHz) );
         ylims = [0, 1];
     end
 end
@@ -713,7 +713,7 @@ function [A,t] = avg_node(SpectObj, EEGObj, nodeFcn)
     % each channel's average nodeFcn with all others 
     A = zeros(SpectObj(1).nbchan,length(SpectObj));
     for s = 1:length(SpectObj)
-        W = nodeFcn(SpectObj(s).frequency2side, SpectObj(s).frequencySpectrum);
+        W = nodeFcn(SpectObj(s));
         A(:,s) = mean(W, 'omitnan');
     end
     t = getTimes(EEGObj);
