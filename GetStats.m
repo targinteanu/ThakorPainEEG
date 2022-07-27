@@ -686,6 +686,18 @@ function [Freq,times] = peakFreqEpoch(epoch_Spec, epoch_EEG, bnd, tbl)
     times = PAFs(:,:,2)'; Freq = PAFs(:,:,1)';
 end
 
+function [Y,t] = rawData(EEGObj, chanSelect)
+    if nargin < 2
+        chanSelect = [];
+    end
+    if ~isempty(chanSelect)
+        EEGObj = pop_select(EEGObj, 'channel', chanSelect);
+    end
+    Y = EEGObj.data; t = EEGObj.times/1000; 
+    t = repmat(t, size(Y,1), 1); 
+    t = t'; Y = Y';
+end
+
 %% network functions 
 
 function [nd,t] = nodeDegree(SpectObj, EEGObj, cutoffPercentile, bnd, tbl)
