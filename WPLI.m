@@ -41,6 +41,12 @@ W = abs(mean(C,2))./mean(abs(C),2);
 W = squeeze(W);
 
 Wval = sort(W(:)); cutoff = Wval(round((cutoffPercentile/100)*length(Wval)));
-A = W > cutoff; 
+if ~sum(Wval < cutoff)
+    % exclude ties, or else every node will be paired 
+    A = W > cutoff;
+else
+    % allow ties to avoid situation in which no nodes are paired 
+    A = W >= cutoff; 
+end
 
 end
