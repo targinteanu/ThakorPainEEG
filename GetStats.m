@@ -29,6 +29,7 @@ meanAmp = @(w,P,band) mean(P(:, ( (w >= band(1))&(w <= band(2)) )), 2);
 ampDensity = @(w,P,band) sum(P(:, ( (w >= band(1))&(w <= band(2)) )), 2) ./ sum(P,2);
 plotOpts = {'Peak Freq (Hz)', 'Band Mean (\muV^2 s^2)', 'Band Density', ...
             'Node Degree', 'Connectivity Strength', 'Frequency Difference', ...
+            'Clustering Coefficient', 'Neighbor Average Physical Distance', ...
             'Frequency Assortativity', ...
             'Neighbors Average '};
 analysisOpts = {'single variable', 'correlation'};
@@ -56,7 +57,7 @@ fcn = cell(1,2);
 for idx = 1:length(PLOTSEL)
 plotSel = PLOTSEL(idx);
 neighborLayers = 0;
-if sum(plotSel == [4,7,8])
+if sum(plotSel == [4,7,8,9,10])
     % percentile cutoff must be selected 
     Pcut = inputdlg('Cutoff Percentile (%)','Network Cutoff Selection');
     Pcut = str2num(Pcut{1});
@@ -67,7 +68,7 @@ while plotSel == length(plotOpts)
     yname = [yname, plotOpts{plotSel}];
     plotSel = listdlg_selectWrapper(plotOpts, 'single', 'Average What?');
 end
-if sum(plotSel == 1:7)
+if sum(plotSel == 1:9)
     % frequency band must be selected 
     [bnd,bndname] = pickFrequency();
     yname = [yname,bndname,' ',plotOpts{plotSel}];
@@ -89,7 +90,7 @@ if sum(plotSel == 1:7)
         else
             ylims = bnd;
         end
-    elseif plotSel == 7
+    elseif plotSel == 9
         % assortativity 
         fcn{idx} = @(Spec, EEG) assortativity(Spec, EEG, bnd, Pcut, BandTableHz);
         ylims = [-1, 1];
@@ -99,14 +100,24 @@ if sum(plotSel == 1:7)
         ylims = 'numchan';
     elseif plotSel == 5
         % conn strength
-        fcn{idx} = @(Spec, EEG) avg_node(Spec, EEG, ...
-            @(SO) WPLI(SO.frequencySpectrum, [], bnd, SO.frequency2side, BandTableHz) );
+        fcn{idx} = @(Spec, EEG) avg_node_2D(Spec, EEG, ...
+            @(SO, EO) WPLI(SO.frequencySpectrum, [], bnd, SO.frequency2side, BandTableHz) );
         ylims = [];
     elseif plotSel == 6
         % Freq Diff 
-        fcn{idx} = @(Spec, EEG) avg_node(Spec, EEG, ...
+        fcn{idx} = @(Spec, EEG) avg_node_2D(Spec, EEG, ...
             @(SO) diffFreq(SO.frequency1side, SO.powerSpectrum, bnd, BandTableHz) );
         ylims = [0, 1];
+    elseif plotSel == 7
+        % Clustering Coeff 
+        fcn{idx} = @(Spec, EEG) clusteringCoeff(Spec, EEG, Pcut, bnd, BandTableHz);
+        ylims = [0, 1];
+    elseif plotSel == 8
+        % Avg Neighbor Dist 
+        fcn{idx} = @(Spec, EEG) avg_neighbor_2D(Spec, EEG, ...
+            @(SO,EO) chanDistance(EO), ...
+            Pcut, bnd, BandTableHz);
+        ylims = [];
     end
 end
 for l = 1:neighborLayers
@@ -721,12 +732,61 @@ function [nd,t] = nodeDegree(SpectObj, EEGObj, cutoffPercentile, bnd, tbl)
     nd = nd'; t = t';
 end
 
-function [A,t] = avg_node(SpectObj, EEGObj, nodeFcn)
+function [C,t] = clusteringCoeff(SpectObj, EEGObj, cutoffPercentile, bnd, tbl)
+    if nargin < 5
+        tbl = [];
+        if nargin < 4
+            bnd = [];
+            if nargin < 3
+                cutoffPercentile = [];
+            end
+        end
+    end
+    C = zeros(SpectObj(1).nbchan,length(SpectObj));
+    for s = 1:length(SpectObj)
+        [W,A] = WPLI(SpectObj(s).frequencySpectrum, cutoffPercentile, ...
+            bnd, SpectObj(s).frequency2side, tbl);
+        k = sum(A,2); Ct = zeros(size(k));
+        for c = 1:SpectObj(s).nbchan
+            Nidx = A(:,c);
+            N = A(Nidx, Nidx);
+            Ct(c) = sum(N(:));
+        end
+        C(:,s) = Ct./(k.*(k-1));
+    end
+    t = getTimes(EEGObj);
+    t = repmat(t, size(C,1), 1); 
+    C = C'; t = t';
+end
+
+function [A,t] = avg_node_2D(SpectObj, EEGObj, nodeFcn)
     % each channel's average nodeFcn with all others 
     A = zeros(SpectObj(1).nbchan,length(SpectObj));
     for s = 1:length(SpectObj)
-        W = nodeFcn(SpectObj(s));
+        W = nodeFcn(SpectObj(s), EEGObj(s));
         A(:,s) = mean(W, 'omitnan');
+    end
+    t = getTimes(EEGObj);
+    t = repmat(t, size(A,1), 1); 
+    A = A'; t = t';
+end
+
+function [A,t] = avg_neighbor_2D(SpectObj, EEGObj, neighborFcn, cutoffPercentile, bnd, tbl)
+    if nargin < 6
+        tbl = [];
+        if nargin < 5
+            bnd = [];
+            if nargin < 4
+                cutoffPercentile = [];
+            end
+        end
+    end
+    A = zeros(SpectObj(1).nbchan,length(SpectObj));
+    for s = 1:length(SpectObj)
+        W = neighborFcn(SpectObj(s), EEGObj(s)); 
+        [~,Adj] = WPLI(SpectObj(s).frequencySpectrum, cutoffPercentile, bnd, ...
+            SpectObj(s).frequency2side, tbl);
+        A(:,s) = arrayfun(@(c) mean(W(Adj(:,c),s)), 1:size(W,1));
     end
     t = getTimes(EEGObj);
     t = repmat(t, size(A,1), 1); 
@@ -783,4 +843,22 @@ function [Af,t] = assortativity(SpectObj, EEGObj, bnd, cutoffPercentile, tbl)
     end
     t = getTimes(EEGObj);
     Af = Af'; t = t';
+end
+
+%% output a 2D matrix 
+
+function D = chanDistance(EEG)
+    chlocs = EEG.chanlocs;
+    for c = 1:length(chlocs)
+        q = chlocs(c).X + chlocs(c).Y + chlocs(c).Z;
+        if isempty(q) | isnan(q)
+            chlocs(c).X = nan; 
+            chlocs(c).Y = nan; 
+            chlocs(c).Z = nan;
+        end
+    end
+    XYZrow = cat(3,chlocs.X,chlocs.Y,chlocs.Z);
+    XYZcol = cat(3,chlocs.X',chlocs.Y',chlocs.Z');
+    dXYZ = XYZrow - XYZcol; 
+    D = sum(dXYZ.^2, 3);
 end
