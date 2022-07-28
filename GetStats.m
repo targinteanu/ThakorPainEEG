@@ -74,7 +74,9 @@ if sum(plotSel == 1:9)
     yname = [yname,bndname,' ',plotOpts{plotSel}];
     if sum(plotSel == [2,3])
         fcn0 = fcnOpts{plotSel};
-        bnd = band2freqs(bnd, BandTableHz);
+        if isa(bnd, 'char') | isa(bnd, 'string')
+            bnd = band2freqs(bnd, BandTableHz);
+        end
         fcn{idx} = @(Spec, EEG) frqFcnEpoch(Spec, EEG, @(w,P) fcn0(w,P,bnd));
         if plotSel == 3
             % Density 
@@ -165,11 +167,12 @@ for subj = 1:length(scanfiles)
         BL{idx} = cat(3,t,Y);
     end
     BL = cell2mat(reshape(BL,[],1)); BLY = BL(:,:,2);
-    dof = size(BL,1) - 1; % deg of freedom 
-    SE = std(BLY) / sqrt(size(BL,1)); % standard error
-    BL_CI = mean(BLY) + [-1; 0; 1] .* tinv(p, dof)*SE;
+    n = arrayfun(@(c) sum(~isnan(BLY(:,c))), 1:size(BLY,2));
+    dof = n - 1; % deg of freedom 
+    SE = std(BLY, 'omitnan') ./ sqrt(n); % standard error
+    BL_CI = mean(BLY, 'omitnan') + [-1; 0; 1] .* tinv(p, dof).*SE;
     BLs{subj,1} = BL_CI; BLs{subj,2} = BL;
-    clear BL_Epoch BL_EpochSpec t Y idx dof SE BLY BL BL_CI
+    clear BL_Epoch BL_EpochSpec t Y idx dof SE BLY BL BL_CI n
 
     % run calculations on desired variables 
     disp('calculating desired variables')
@@ -463,14 +466,16 @@ for v = testVars
                         for chan = 1:size(Y,2)
                             y = Y(:,chan); bl = BL(:,chan);
                             y = y(~isnan(y)); bl = bl(~isnan(bl));
-                            if mean(y) > mean(bl)
-                                %[~,pp(chan)] = ttest2(bl,y, 'Vartype','unequal', 'Tail','left');
-                                [~,pp(chan)] = kstest2(bl,y, 'Tail','larger');
-                                pp(chan) = .5-pp(chan);
-                            else
-                                %[~,pp(chan)] = ttest2(bl,y, 'Vartype','unequal', 'Tail','right');
-                                [~,pp(chan)] = kstest2(bl,y, 'Tail','smaller');
-                                pp(chan) = pp(chan)-.5;
+                            if (length(y) > 1) & (length(bl) > 1)
+                                if mean(y) > mean(bl)
+                                    %[~,pp(chan)] = ttest2(bl,y, 'Vartype','unequal', 'Tail','left');
+                                    [~,pp(chan)] = kstest2(bl,y, 'Tail','larger');
+                                    pp(chan) = .5-pp(chan);
+                                else
+                                    %[~,pp(chan)] = ttest2(bl,y, 'Vartype','unequal', 'Tail','right');
+                                    [~,pp(chan)] = kstest2(bl,y, 'Tail','smaller');
+                                    pp(chan) = pp(chan)-.5;
+                                end
                             end
                         end
 
@@ -753,6 +758,7 @@ function [C,t] = clusteringCoeff(SpectObj, EEGObj, cutoffPercentile, bnd, tbl)
             Ct(c) = sum(N(:));
         end
         C(:,s) = Ct./(k.*(k-1));
+        % C(Ct==0,s) = 0; % ??
     end
     t = getTimes(EEGObj);
     t = repmat(t, size(C,1), 1); 
@@ -786,7 +792,10 @@ function [A,t] = avg_neighbor_2D(SpectObj, EEGObj, neighborFcn, cutoffPercentile
         W = neighborFcn(SpectObj(s), EEGObj(s)); 
         [~,Adj] = WPLI(SpectObj(s).frequencySpectrum, cutoffPercentile, bnd, ...
             SpectObj(s).frequency2side, tbl);
-        A(:,s) = arrayfun(@(c) mean(W(Adj(:,c),s)), 1:size(W,1));
+        for idx = 1:size(Adj,1)
+            Adj(idx,idx) = 1;
+        end
+        A(:,s) = arrayfun(@(c) mean(W(Adj(:,c),c)), 1:size(W,1));
     end
     t = getTimes(EEGObj);
     t = repmat(t, size(A,1), 1); 
@@ -857,8 +866,8 @@ function D = chanDistance(EEG)
             chlocs(c).Z = nan;
         end
     end
-    XYZrow = cat(3,chlocs.X,chlocs.Y,chlocs.Z);
-    XYZcol = cat(3,chlocs.X',chlocs.Y',chlocs.Z');
+    XYZrow = cat(3,[chlocs.X],[chlocs.Y],[chlocs.Z]);
+    XYZcol = cat(3,[chlocs.X]',[chlocs.Y]',[chlocs.Z]');
     dXYZ = XYZrow - XYZcol; 
     D = sum(dXYZ.^2, 3);
 end
