@@ -15,8 +15,8 @@ plotOpts1D =   {'Peak Freq (Hz)', ...
                 'Node Average '};
 plotOpts0D =   {'Custom Correlation', ...
                 'Frequency Assortativity'};
-plotOpts2D =   {'WPLI', ...
-                'PLV', ...
+plotOpts2D =   {'WPLI ', ...
+                'PLV ', ...
                 'Frequency Difference', ...
                 'Channel Distance (mm)', ...
                 'Adjacency'};
@@ -44,7 +44,7 @@ if strcmp(PLOTSEL{1}, 'Custom Correlation')
     for idx = 1:length(PLOTSEL)
         % request each individual variable 
         PS = listdlg_selectWrapper(plotOpts, 'single', ...
-            ['Correlation Between: (',num2str(idx),' of ',mun2str(length(PLOTSEL)),')']);
+            ['Correlation Between: (',num2str(idx),' of ',num2str(length(PLOTSEL)),')']);
         PLOTSEL{idx} = plotOpts{PS};
     end
 end
@@ -55,22 +55,46 @@ for idx = 1:length(PLOTSEL)
     plotSel = PLOTSEL{idx};
 
     % request parameters for network variables 
+    nwFcn = []; nwSel = '';
+    nwFcn_needs_bnd = false;
+    Pcut = [];
     if sum(strcmp(plotSel, {...
             'Node Degree', ...
             'Clustering Coefficient', ...
             'Neighbor Average Distance (mm)', ...
             'Frequency Assortativity', ...
+            'Adjacency', ...
             'Neighbors Average '}) )
         % percentile cutoff must be selected
         Pcut = inputdlg('Network Cutoff Percentile (%)', ...
             [plotSel,' (',num2str(idx),' of ',num2str(length(PLOTSEL)),') Network Cutoff']);
         Pcut = str2num(Pcut{1});
     end
+    if sum(strcmp(plotSel, {...
+            'Connectivity Strength', ...
+            'Node Degree', ...
+            'Clustering Coefficient', ...
+            'Neighbor Average Distance (mm)', ...
+            'Adjacency', ...
+            'Neighbors Average '}) )
+        % network method must be specified 
+        [~,nwSel] = listdlg_selectWrapper(plotOpts2D, 'single', 'Network Method:');
+        nwSel = nwSel{1};
+        if strcmp(nwSel, 'WPLI ')
+            nwFcn = @(Spec,EEG, bnd) ...
+                WPLI(Spec.frequencySpectrum, Pcut, Spec.frequency2side, BandTableHz);
+            nwFcn_needs_bnd = true;
+        elseif strcmp(nwSel, 'PLV ')
+            nwFcn = @(Spec,EEG, bnd) ...
+                PLV();
+            nwFcn_needs_bnd = true;
+        end
+    end
 
     % *** handle 2D-to-1D functions and neighbor functions ***
     neighborLayers = 0; % number of times to iterate avg_neighbors
     fcn_2D_to_1D = [];  % 2D to 1D conversion function
-    fcn_2D_to_1D_needs_bnd = false;
+    fcn_2D_to_1D_needs_nwFcn = false;
     if strcmp(plotSel, 'Neighbors Average ')
         % Neighbors Average Value - of what?
         contChain = true;
@@ -81,8 +105,8 @@ for idx = 1:length(PLOTSEL)
             plotSel = plotOpts{plotSel};
             if sum(strcmp(plotSel, plotOpts2D))
                 % use avg_neighbor_2D and end the chain
-                fcn_2D_to_1D = @(a,b,c,B) avg_neighbor_2D(a,b,c, Pcut, B, BandTableHz);
-                fcn_2D_to_1D_needs_bnd = true;
+                fcn_2D_to_1D = @(a,b,c,F) avg_neighbor_2D(a,b,c,F);
+                fcn_2D_to_1D_needs_nwFcn = true;
                 contChain = false;
             else
                 % use avg_neighbor and continue the chain only if another average selected
@@ -101,79 +125,97 @@ for idx = 1:length(PLOTSEL)
     end
 
 
+    % frequency band must be selected ?
     if (sum(strcmp(plotSel,{...
             'Peak Freq (Hz)', ...
             'Band Mean (\muV^2 s^2)', ...
             'Band Density', ...
-            'Node Degree', ...
-            'Connectivity Strength', ...
+            'Frequency Assortativity', ...
             'Average Frequency Difference', ...
-            'Clustering Coefficient', ...
-            'Neighbor Average Distance (mm)', ...
-            'Frequency Assortativity'}) ) ) ...
-            | fcn_2D_to_1D_needs_bnd
-        % frequency band must be selected
-        [bnd,bndname] = pickFrequency();
+            'WPLI ', ...
+            'PLV ', ...
+            'Frequency Difference'}) ) ) ...
+            | nwFcn_needs_bnd
+        [bnd,bndname] = pickFrequency([plotSel,' (',num2str(idx),' of ',num2str(length(PLOTSEL)),')']);
         yname = [yname,bndname,' ',plotSel];
 
-        % *** handle 2D-to-1D functions and neighbor functions ***
-        if fcn_2D_to_1D_needs_bnd
-            fcn_2D_to_1D = @(a,b,c) fcn_2D_to_1D(a,b,c, bnd);
+        % network 
+        if nwFcn_needs_bnd
+            nwFcn = @(Spec,EEG) nwFcn(Spec,EEG, bnd);
+            nwSel = [bndname,' ',nwSel];
         end
+    end
+        
+    % *** handle 2D-to-1D functions and neighbor functions ***
+    if fcn_2D_to_1D_needs_nwFcn
+        fcn_2D_to_1D = @(a,b,c) fcn_2D_to_1D(a,b,c, nwFcn);
+    end
 
-        isBasicFreqFcn = find(strcmp(plotSel, {...
-            'Band Mean (\muV^2 s^2)', ...
-            'Band Density'}) );
-        if ~isempty(isBasicFreqFcn)
-            fcn0 = basicFreqFcnOpts{isBasicFreqFcn};
-            if isa(bnd, 'char') | isa(bnd, 'string')
-                bnd = band2freqs(bnd, BandTableHz);
-            end
-            fcn{idx} = @(Spec, EEG) frqFcnEpoch(Spec, EEG, @(w,P) fcn0(w,P,bnd));
-            if strcmp(plotSel, 'Band Density')
-                ylims = [0 1];
-            elseif strcmp(plotSel, 'Band Mean (\muV^2 s^2)')
-                ylims = [];
-            end
-
-        elseif strcmp(plotSel, 'Peak Freq (Hz)')
-            % peak freq
-            fcn{idx} = @(Spec, EEG) peakFreqEpoch(Spec, EEG, bnd, BandTableHz);
-            if isa(bnd,'char') | isa(bnd,'string')
-                ylims = band2freqs(bnd, BandTableHz);
-            else
-                ylims = bnd;
-            end
-
-        elseif strcmp(plotSel, 'Frequency Assortativity')
-            % assortativity
-            fcn{idx} = @(Spec, EEG) assortativity(Spec, EEG, bnd, Pcut, BandTableHz);
-            ylims = [-1, 1];
-        elseif strcmp(plotSel, 'Node Degree')
-            % node degree
-            fcn{idx} = @(Spec, EEG) nodeDegree(Spec, EEG, Pcut, bnd, BandTableHz);
-            ylims = 'numchan';
-        elseif strcmp(plotSel, 'Connectivity Strength')
-            % conn strength
-            fcn{idx} = @(Spec, EEG) avg_node_2D(Spec, EEG, ...
-                @(SO, EO) WPLI(SO.frequencySpectrum, [], bnd, SO.frequency2side, BandTableHz) );
-            ylims = [];
-        elseif strcmp(plotSel, 'Average Frequency Difference')
-            % Freq Diff
-            fcn{idx} = @(Spec, EEG) avg_node_2D(Spec, EEG, ...
-                @(SO) diffFreq(SO.frequency1side, SO.powerSpectrum, bnd, BandTableHz) );
-            ylims = [0, 1];
-        elseif strcmp(plotSel, 'Clustering Coefficient')
-            % Clustering Coeff
-            fcn{idx} = @(Spec, EEG) clusteringCoeff(Spec, EEG, Pcut, bnd, BandTableHz);
-            ylims = [0, 1];
-        elseif strcmp(plotSel, 'Neighbor Average Distance (mm)')
-            % Avg Neighbor Dist
-            fcn{idx} = @(Spec, EEG) avg_neighbor_2D(Spec, EEG, ...
-                @(SO,EO) chanDistance(EO), ...
-                Pcut, bnd, BandTableHz);
+    isBasicFreqFcn = find(strcmp(plotSel, {...
+        'Band Mean (\muV^2 s^2)', ...
+        'Band Density'}) );
+    if ~isempty(isBasicFreqFcn)
+        fcn0 = basicFreqFcnOpts{isBasicFreqFcn};
+        if isa(bnd, 'char') | isa(bnd, 'string')
+            bnd = band2freqs(bnd, BandTableHz);
+        end
+        fcn{idx} = @(Spec, EEG) frqFcnEpoch(Spec, EEG, @(w,P) fcn0(w,P,bnd));
+        if strcmp(plotSel, 'Band Density')
+            ylims = [0 1];
+        elseif strcmp(plotSel, 'Band Mean (\muV^2 s^2)')
             ylims = [];
         end
+
+    elseif strcmp(plotSel, 'Peak Freq (Hz)')
+        % peak freq
+        fcn{idx} = @(Spec, EEG) peakFreqEpoch(Spec, EEG, bnd, BandTableHz);
+        if isa(bnd,'char') | isa(bnd,'string')
+            ylims = band2freqs(bnd, BandTableHz);
+        else
+            ylims = bnd;
+        end
+
+    elseif strcmp(plotSel, 'Frequency Assortativity')
+        % assortativity
+        fcn{idx} = @(Spec, EEG) assortativity(Spec, EEG, bnd, Pcut, BandTableHz);
+        ylims = [-1, 1];
+    elseif strcmp(plotSel, 'Node Degree')
+        % node degree
+        fcn{idx} = @(Spec, EEG) nodeDegree(Spec, EEG, nwFcn);
+        ylims = 'numchan';
+    elseif strcmp(plotSel, 'Connectivity Strength')
+        % conn strength
+        fcn{idx} = @(Spec, EEG) avg_node_2D(Spec, EEG, ...
+            nwFcn );
+        ylims = [];
+    elseif strcmp(plotSel, 'Average Frequency Difference')
+        % Freq Diff
+        fcn{idx} = @(Spec, EEG) avg_node_2D(Spec, EEG, ...
+            @(SO) diffFreq(SO.frequency1side, SO.powerSpectrum, bnd, BandTableHz) );
+        ylims = [0, 1];
+    elseif strcmp(plotSel, 'Clustering Coefficient')
+        % Clustering Coeff
+        fcn{idx} = @(Spec, EEG) clusteringCoeff(Spec, EEG, nwFcn);
+        ylims = [0, 1];
+    elseif strcmp(plotSel, 'Neighbor Average Distance (mm)')
+        % Avg Neighbor Dist
+        fcn{idx} = @(Spec, EEG) avg_neighbor_2D(Spec, EEG, ...
+            @(SO,EO) chanDistance(EO), ...
+            nwFcn);
+        ylims = [];
+
+    elseif strcmp(plotSel, 'Frequency Difference')
+        fcn{idx} = @(Spec, EEG) diffFreq(Spec.frequency1side, Spec.powerSpectrum, bnd, BandTableHz);
+        ylims = [0, 1];
+    elseif strcmp(plotSel, 'WPLI ')
+        fcn{idx} = @(Spec, EEG) WPLI(Spec.frequencySpectrum, Pcut, bnd, Spec.frequency2side, BandTableHz);
+        ylims = [0, 1];
+    elseif strcmp(plotSel, 'PLV ')
+        fcn{idx} = @(Spec, EEG) PLV();
+        ylims = [];
+    elseif strcmp(plotSel, 'Channel Distance (mm)')
+        fcn{idx} = @(Spec, EEG) chanDistance(EEG);
+        ylims = [];
     end
 
 
@@ -183,6 +225,15 @@ for idx = 1:length(PLOTSEL)
     end
     for l = 1:neighborLayers
         fcn{idx} = @(Spec, EEG) avg_neighbor(Spec, EEG, fcn{idx}, Pcut, bnd, BandTableHz);
+    end
+
+
+    % describe network  
+    if ~isempty(Pcut) | ~isempty(nwSel)
+        yname = [yname,' in ',nwSel,'Network'];
+        if ~isempty(Pcut)
+            yname = [yname,' of top ',num2str(100-Pcut),'%'];
+        end
     end
 
 
@@ -201,10 +252,10 @@ end
 
 %% helper functions 
 
-function [bandrange, bandname] = pickFrequency()
+function [bandrange, bandname] = pickFrequency(ttl)
     global BandTableHz
     freqOpts = [BandTableHz.Properties.RowNames; 'custom'; 'all'];
-    bandrange = listdlg_selectWrapper(freqOpts, 'single', 'Specify Frequency Band');
+    bandrange = listdlg_selectWrapper(freqOpts, 'single', [ttl,': Specify Frequency Band']);
     if bandrange == (length(freqOpts) - 1)
         % custom 
         bandrange = inputdlg({'Minimum Frequency (Hz):', 'Maximum Frequency (Hz):'},...
@@ -280,20 +331,10 @@ end
 
 %% network functions 
 
-function [nd,t] = nodeDegree(SpectObj, EEGObj, cutoffPercentile, bnd, tbl)
-    if nargin < 5
-        tbl = [];
-        if nargin < 4
-            bnd = [];
-            if nargin < 3
-                cutoffPercentile = [];
-            end
-        end
-    end
+function [nd,t] = nodeDegree(SpectObj, EEGObj, networkFcn)
     nd = zeros(SpectObj(1).nbchan,length(SpectObj));
     for s = 1:length(SpectObj)
-        [W,A] = WPLI(SpectObj(s).frequencySpectrum, cutoffPercentile, ...
-            bnd, SpectObj(s).frequency2side, tbl);
+        [~,A] = networkFcn(SpectObj(s), EEGObj(s));
         nd(:,s) = sum(A);
     end
     t = getTimes(EEGObj);
@@ -301,20 +342,10 @@ function [nd,t] = nodeDegree(SpectObj, EEGObj, cutoffPercentile, bnd, tbl)
     nd = nd'; t = t';
 end
 
-function [C,t] = clusteringCoeff(SpectObj, EEGObj, cutoffPercentile, bnd, tbl)
-    if nargin < 5
-        tbl = [];
-        if nargin < 4
-            bnd = [];
-            if nargin < 3
-                cutoffPercentile = [];
-            end
-        end
-    end
+function [C,t] = clusteringCoeff(SpectObj, EEGObj, networkFcn)
     C = zeros(SpectObj(1).nbchan,length(SpectObj));
     for s = 1:length(SpectObj)
-        [W,A] = WPLI(SpectObj(s).frequencySpectrum, cutoffPercentile, ...
-            bnd, SpectObj(s).frequency2side, tbl);
+        [~,A] = networkFcn(SpectObj(s), EEGObj(s));
         k = sum(A,2); Ct = zeros(size(k));
         for c = 1:SpectObj(s).nbchan
             Nidx = A(:,c);
@@ -344,22 +375,12 @@ function [A,t] = avg_node_2D(SpectObj, EEGObj, nodeFcn)
     A = A'; t = t';
 end
 
-function [A,t] = avg_neighbor_2D(SpectObj, EEGObj, neighborFcn, cutoffPercentile, bnd, tbl)
+function [A,t] = avg_neighbor_2D(SpectObj, EEGObj, neighborFcn, networkFcn)
     % convert 2D to 1D 
-    if nargin < 6
-        tbl = [];
-        if nargin < 5
-            bnd = [];
-            if nargin < 4
-                cutoffPercentile = [];
-            end
-        end
-    end
     A = zeros(SpectObj(1).nbchan,length(SpectObj));
     for s = 1:length(SpectObj)
         W = neighborFcn(SpectObj(s), EEGObj(s)); 
-        [~,Adj] = WPLI(SpectObj(s).frequencySpectrum, cutoffPercentile, bnd, ...
-            SpectObj(s).frequency2side, tbl);
+        [~,Adj] = networkFcn(SpectObj(s), EEGObj(s));
         for idx = 1:size(Adj,1)
             Adj(idx,idx) = 1;
         end
@@ -370,22 +391,12 @@ function [A,t] = avg_neighbor_2D(SpectObj, EEGObj, neighborFcn, cutoffPercentile
     A = A'; t = t';
 end
 
-function [A,t] = avg_neighbor(SpectObj, EEGObj, neighborFcn, cutoffPercentile, bnd, tbl)
+function [A,t] = avg_neighbor(SpectObj, EEGObj, neighborFcn, networkFcn)
     % 1D to 1D
-    if nargin < 6
-        tbl = [];
-        if nargin < 5
-            bnd = [];
-            if nargin < 4
-                cutoffPercentile = [];
-            end
-        end
-    end
     Y = neighborFcn(SpectObj, EEGObj); Y = Y';
     A = zeros(size(Y));
     for s = 1:length(SpectObj)
-        [~,Adj] = WPLI(SpectObj(s).frequencySpectrum, cutoffPercentile, bnd, ...
-            SpectObj(s).frequency2side, tbl);
+        [~,Adj] = networkFcn(SpectObj(s), EEGObj(s));
         A(:,s) = arrayfun(@(c) mean(Y(Adj(:,c),s)), 1:size(Y,1));
     end
     t = getTimes(EEGObj);
