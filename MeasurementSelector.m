@@ -1,3 +1,5 @@
+function [fcn, yname, ylims] = MeasurementSelector()
+
 load("BrainwaveFrequencyTable.mat");
 global BandTableHz
 
@@ -253,7 +255,6 @@ end
 %% helper functions 
 
 function [bandrange, bandname] = pickFrequency(ttl)
-    global BandTableHz
     freqOpts = [BandTableHz.Properties.RowNames; 'custom'; 'all'];
     bandrange = listdlg_selectWrapper(freqOpts, 'single', [ttl,': Specify Frequency Band']);
     if bandrange == (length(freqOpts) - 1)
@@ -472,4 +473,6 @@ function D = chanDistance(EEG)
     XYZcol = cat(3,[chlocs.X]',[chlocs.Y]',[chlocs.Z]');
     dXYZ = XYZrow - XYZcol; 
     D = sum(dXYZ.^2, 3).^.5;
+end
+
 end
