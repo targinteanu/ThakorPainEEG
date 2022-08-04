@@ -84,7 +84,7 @@ for idx = 1:length(PLOTSEL)
         nwSel = nwSel{1};
         if strcmp(nwSel, 'WPLI ')
             nwFcn = @(Spec,EEG, bnd) ...
-                WPLI(Spec.frequencySpectrum, Pcut, Spec.frequency2side, BandTableHz);
+                WPLI(Spec.frequencySpectrum, Pcut, bnd, Spec.frequency2side, BandTableHz);
             nwFcn_needs_bnd = true;
         elseif strcmp(nwSel, 'PLV ')
             nwFcn = @(Spec,EEG, bnd) ...
@@ -292,6 +292,14 @@ function [sel, listOut] = listdlg_selectWrapper(list, SelectionMode, PromptStrin
     listOut = list(sel);
 end
 
+function t = getTimes(epoch_EEG)
+    if isempty(epoch_EEG)
+        t = [];
+    else
+        t = arrayfun(@(eeg) mean([eeg.xmin, eeg.xmax]), epoch_EEG);
+    end
+end
+
 %% time-frequency functions 
 
 function [Y,times] = frqFcnEpoch(epoch_Spec, epoch_EEG, fcn)
@@ -430,10 +438,6 @@ end
 function [Af,t] = assortativity(SpectObj, EEGObj, bnd, cutoffPercentile, tbl)
     % 0D
     if nargin < 5
-        if ~exist('BandTableHz')
-            load('BrainwaveFrequencyTable.mat');
-            global BandTableHz
-        end
         tbl = BandTableHz;
         if nargin < 4
             cutoffPercentile = [];

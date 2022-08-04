@@ -522,27 +522,3 @@ function plotEvents(EEG, ybound)
         end
     end
 end
-    if nargin < 2
-        chanSelect = [];
-    end
-    if ~isempty(chanSelect)
-        EEGObj = pop_select(EEGObj, 'channel', chanSelect);
-    end
-    Y = EEGObj.data; t = EEGObj.times/1000; 
-    t = repmat(t, size(Y,1), 1); 
-    t = t'; Y = Y';
-end
-    chlocs = EEG.chanlocs;
-    for c = 1:length(chlocs)
-        q = chlocs(c).X + chlocs(c).Y + chlocs(c).Z;
-        if isempty(q) | isnan(q)
-            chlocs(c).X = nan; 
-            chlocs(c).Y = nan; 
-            chlocs(c).Z = nan;
-        end
-    end
-    XYZrow = cat(3,[chlocs.X],[chlocs.Y],[chlocs.Z]);
-    XYZcol = cat(3,[chlocs.X]',[chlocs.Y]',[chlocs.Z]');
-    dXYZ = XYZrow - XYZcol; 
-    D = sum(dXYZ.^2, 3).^.5;
-end
