@@ -88,7 +88,7 @@ for idx = 1:length(PLOTSEL)
             nwFcn_needs_bnd = true;
         elseif strcmp(nwSel, 'PLV ')
             nwFcn = @(Spec,EEG, bnd) ...
-                PLV();
+                PLV(Spec.frequencySpectrum, Pcut, bnd, Spec.frequency2side, BandTableHz);
             nwFcn_needs_bnd = true;
         end
     end
@@ -213,8 +213,8 @@ for idx = 1:length(PLOTSEL)
         fcn{idx} = @(Spec, EEG) WPLI(Spec.frequencySpectrum, Pcut, bnd, Spec.frequency2side, BandTableHz);
         ylims = [0, 1];
     elseif strcmp(plotSel, 'PLV ')
-        fcn{idx} = @(Spec, EEG) PLV();
-        ylims = [];
+        fcn{idx} = @(Spec, EEG) PLV(Spec.frequencySpectrum, Pcut, bnd, Spec.frequency2side, BandTableHz);
+        ylims = [0, 1];
     elseif strcmp(plotSel, 'Channel Distance (mm)')
         fcn{idx} = @(Spec, EEG) chanDistance(EEG);
         ylims = [];

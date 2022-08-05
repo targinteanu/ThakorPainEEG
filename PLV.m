@@ -36,7 +36,7 @@ for r1 = 1:size(Z,1)
     end
 end
 
-P = real(mean(C,2)); P = squeeze(P);
+P = abs(mean(C,2)); P = squeeze(P);
 
 Pval = sort(P(:)); cutoff = Pval(round((cutoffPercentile/100)*length(Pval)));
 if ~sum(Pval < cutoff)
