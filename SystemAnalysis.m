@@ -94,6 +94,16 @@ clear H01 P04
 
 %%
 [Y,t] = fcn(H01_Epoch_w_PP, H01_Epoch_t_PP); t = t(:,1);
+BL = fcn(H01_w_BL, H01_t_BL); Y = Y - BL;
+chloc = H01_t_BL.chanlocs;
+%Y = Y(:,14); chloc = chloc(14); % cz
+
+%{
+flt = designfilt('highpassiir', 'SampleRate', 1/mean(diff(t)), ...
+    'PassbandFrequency', .25, 'StopbandFrequency', .15);
+Y = filtfilt(flt, Y);
+%}
+
 tt = [H01_event_PP([31,32,41]).latency]/500;
 hbnd = tt(1:2) + [0,-.5]; ybnd = tt(2:3);
 h_idx = (t <= hbnd(2)) & (t >= hbnd(1));
@@ -106,18 +116,63 @@ tt = [H01_event_PP(32:41).latency]/500;
 tt = tt - ty(1); ty = ty - ty(1); th = th - th(1);
 figure; hold on;
 for tDelta = tt
-    tShift = th - tDelta;
+    tShift = ty - tDelta;
     hShift = cell2mat( arrayfun(@(c) ...
             interp1(th, Yh(:,c), tShift, 'nearest', 'extrap'), ...
             1:size(Yh,2), 'UniformOutput',false) );
-    plot(th, hShift);
+    %plot(th, hShift);
+    %{
     hDelta = cell2mat( arrayfun(@(c) ...
             interp1(th, hShift(:,c), ty, 'nearest', 'extrap'), ...
             1:size(Yh,2), 'UniformOutput',false) );
-    ypred = ypred + hDelta;
+    %}
+    %plot(ty, hShift);
+    ypred = ypred + hShift;
 end
 
-figure; plot(ypred, Yy, '.');
+%{
+figure; subplot(2,1,1); plot(ypred, Yy, '.');
+subplot(2,1,2); plot(ty, Yy); hold on; plot(ty, ypred);
+%}
+
+%%
+sttl = ['Subject H01 PinPrick Trial 4 - ',yname];
+fig(2) = figure; sgtitle(sttl);
+fig(1) = figure; sgtitle(sttl);
+H = floor(sqrt(size(Yy,2)));
+W = ceil(size(Yy,2)/H);
+RP = zeros(2, size(Yy,2));
+figure(fig(1));
+for idx = 1:size(Yy,2)
+    [RP(1,idx), RP(2,idx)] = corr(ypred(:,idx), Yy(:,idx));
+    subplot(H,W,idx); 
+    plot(ypred(:,idx), Yy(:,idx), '.');
+    xlabel('LTI prediction'); ylabel('actual'); 
+    title([chloc(idx).labels,...
+        ': \rho = ',num2str(RP(1,idx),2),...
+        '; p = ',num2str(RP(2,idx),1)]);
+end
+figure(fig(2));
+for idx = 1:size(Yy,2)
+    subplot(H,W,idx); 
+    plot(ty, ypred(:,idx)); hold on; plot(ty, Yy(:,idx));
+    xlabel('time (s)') 
+    title([chloc(idx).labels,...
+        ': \rho = ',num2str(RP(1,idx),2),...
+        '; p = ',num2str(RP(2,idx),1)]);
+end
+legend({'LTI prediction', 'actual'});
+
+%%
+figure; sgtitle(sttl); 
+subplot(1,2,1); 
+topoplot(RP(1,:), chloc, 'maplimits',[-1 1], 'electrodes','labels');
+colorbar;
+title('\rho');
+subplot(1,2,2); 
+topoplot(RP(2,:), chloc, 'maplimits',[0 1],  'electrodes','labels');
+colorbar;
+title('p');
 
 %% helper functions
 
