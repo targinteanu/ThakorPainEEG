@@ -103,18 +103,23 @@ flt = designfilt('highpassiir', 'SampleRate', 1/mean(diff(t)), ...
     'PassbandFrequency', .25, 'StopbandFrequency', .15);
 Y = filtfilt(flt, Y);
 %}
-
-tt = [H01_event_PP([31,32,41]).latency]/500;
+%%
+trl = 2;
+tsplit = H01_boundTimes_PP(trl,:);
+tt = [H01_event_PP(tsplit).latency]/500;
 hbnd = tt(1:2) + [0,-.5]; ybnd = tt(2:3);
 h_idx = (t <= hbnd(2)) & (t >= hbnd(1));
 y_idx = (t <= ybnd(2)) & (t >= ybnd(1));
 Yh = Y(h_idx,:); Yy = Y(y_idx,:);
 th = t(h_idx);   ty = t(y_idx);
 
+figure; plot(th, Yh); xlabel('time (s)'); ylabel(yname);
+title(['Subject H01 PinPrick Trial ',num2str(trl),' - Impulse Response']);
+
 ypred = zeros(size(Yy));
-tt = [H01_event_PP(32:41).latency]/500;
+tt = [H01_event_PP(tsplit(2):tsplit(3)).latency]/500;
 tt = tt - ty(1); ty = ty - ty(1); th = th - th(1);
-figure; hold on;
+%figure; hold on;
 for tDelta = tt
     tShift = ty - tDelta;
     hShift = cell2mat( arrayfun(@(c) ...
@@ -127,16 +132,17 @@ for tDelta = tt
             1:size(Yh,2), 'UniformOutput',false) );
     %}
     %plot(ty, hShift);
+    %plot(tDelta, 0, 'vr', 'LineWidth', 2);
     ypred = ypred + hShift;
 end
-
+%plot(ty, Yy);
 %{
 figure; subplot(2,1,1); plot(ypred, Yy, '.');
 subplot(2,1,2); plot(ty, Yy); hold on; plot(ty, ypred);
 %}
 
 %%
-sttl = ['Subject H01 PinPrick Trial 4 - ',yname];
+sttl = ['Subject H01 PinPrick Trial ',num2str(trl),' - ',yname];
 fig(2) = figure; sgtitle(sttl);
 fig(1) = figure; sgtitle(sttl);
 H = floor(sqrt(size(Yy,2)));
