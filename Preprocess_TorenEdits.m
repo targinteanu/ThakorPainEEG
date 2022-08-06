@@ -36,9 +36,6 @@ eeglab
 %% Preprocessing in EEGLAB ---------------------------------------------
 mkdir(svloc);
 
-extractBetweenEvents = @(inEEG, evs) ...
-    {arrayfun(@(idx) pop_select(inEEG, 'time', [evs(idx,:).init_time]), 1:size(evs,1))};
-
 for subj = 1:size(datafolders,1)
     cd(home)
     disp(datafolders(subj,1).name)
@@ -90,9 +87,16 @@ for subj = 1:size(datafolders,1)
             if EEG.srate > 512
                 EEG = pop_resample( EEG, 512);
             end
-            EEG = pop_select( EEG,'nochannel',{'CB1' 'CB2' 'HEO' 'VEO' 'HEOG' 'VEOG'});
+            EEG = pop_select( EEG,'nochannel',{'CB1' 'CB2' 'HEO' 'VEO' 'HEOG' 'VEOG' 'M1' 'M2'});
             EEG = pop_reref( EEG, []);
-            EEG = pop_eegfiltnew(EEG, 2, 100, 826, 0, [], 1);
+            EEG = pop_eegfiltnew(EEG, 1, 100, 826, 0, [], 1);
+            notch = designfilt('bandstopiir', ...
+                'PassbandFrequency1', 58, 'StopbandFrequency1', 59, ...
+                'StopbandFrequency2', 61, 'PassbandFrequency2', 62, ...
+                'PassbandRipple1', 1, 'PassbandRipple2', 1, 'StopbandAttenuation', 10, ...
+                'SampleRate', EEG.srate);
+            EEG.data = filtfilt(notch, EEG.data')';
+            EEG = checkset(EEG);
 
             %inspect raw spectra and reject spectra that are odd looking
             figure; pop_spectopo(EEG, 1, [0  15000], 'EEG' , 'freqrange',[2 100],'electrodes','off');
@@ -447,5 +451,16 @@ function evs = uniqueEvents(evs)
         else
             idx1 = idx1 + 1; idx2 = idx1 + 1;
         end
+    end
+end
+
+function outEEG = extractBetweenEvents(inEEG, evs)
+    buf = .5; % s
+    outEEG = repmat(inEEG, 1, size(evs,1));
+    for idx = 1:size(evs,1)
+        bound = [evs(idx,:).init_time];
+        bound(1) = max(inEEG.xmin, bound(1)-buf);
+        bound(2) = min(inEEG.xmax, bound(2)+buf);
+        outEEG(idx) = pop_select(inEEG, 'time', bound);
     end
 end
