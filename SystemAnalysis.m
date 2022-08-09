@@ -9,7 +9,7 @@ home = '/Users/torenarginteanu/Documents/MATLAB/ThakorPainEEG';
 cd(home)
 
 %%
-fp = '/Users/torenarginteanu/Documents/MATLAB/ThakorPainEEG/Data_Chronic Pain/Preprocessed AllCopies 2022-07-03/Postprocessed 2022-07-03 21.05.29 -- 4s epoch, 3.75s overlap/';
+fp = '/Users/torenarginteanu/Documents/MATLAB/ThakorPainEEG/Data_Chronic Pain/Preprocessed 2022-08-06 19.51.25/Postprocessed 2022-08-07 01.56.52 -- 4s epoch, 3.8s overlap/';
 H01 = load([fp,'2021-11-11 CP H01 --- 20211111_1143.mat -- preprocessed.mat -- postprocessed.mat']);
 P04 = load([fp,'2021-10-14 CP P04 --- 20211014_1308.mat -- preprocessed.mat -- postprocessed.mat']);
 
@@ -86,16 +86,19 @@ H01_boundTimes_PPCPM = eventBoundTimes(H01_event_PPCPM);
 P04_boundTimes_PP    = eventBoundTimes(P04_event_PP);
 P04_boundTimes_PPCPM = eventBoundTimes(P04_event_PPCPM);
 
-
+%%
 clear H01 P04
 
 %% select what to plot
 [fcn, yname, ylims] = MeasurementSelector();
 
 %%
-[Y,t] = fcn(P04_Epoch_w_PP, P04_Epoch_t_PP); t = t(:,1);
-BL = fcn(P04_w_BL, P04_t_BL); Y = Y - BL;
-chloc = P04_t_BL.chanlocs;
+[Y,t] = fcn(H01_Epoch_w_PP, H01_Epoch_t_PP); t = t(:,1);
+BL = fcn(H01_w_BL, H01_t_BL); 
+BLe = fcn(H01_Epoch_w_BL, H01_Epoch_t_BL); 
+% Y = Y - BL; % remove baseline 
+Y = (Y - BL)./(std(BLe)/sqrt(size(BLe,1))); % t statistic 
+chloc = H01_t_BL.chanlocs;
 %Y = Y(:,14); chloc = chloc(14); % cz
 
 %{
@@ -104,9 +107,9 @@ flt = designfilt('highpassiir', 'SampleRate', 1/mean(diff(t)), ...
 Y = filtfilt(flt, Y);
 %}
 %%
-trl = 4;
-tsplit = P04_boundTimes_PP(trl,:);
-tt = [P04_event_PP(tsplit).latency]/500;
+trl = 2;
+tsplit = H01_boundTimes_PP(trl,:);
+tt = [H01_event_PP(tsplit).latency]/500;
 hbnd = tt(1:2) + [0,-.5]; ybnd = tt(2:3);
 h_idx = (t <= hbnd(2)) & (t >= hbnd(1));
 y_idx = (t <= ybnd(2)) & (t >= ybnd(1));
@@ -114,10 +117,10 @@ Yh = Y(h_idx,:); Yy = Y(y_idx,:);
 th = t(h_idx);   ty = t(y_idx);
 
 figure; plot(th, Yh); xlabel('time (s)'); ylabel(yname);
-title(['Subject P04 PinPrick Trial ',num2str(trl),' - Impulse Response']);
+title(['Subject H01 PinPrick Trial ',num2str(trl),' - Impulse Response']);
 
 ypred = zeros(size(Yy));
-tt = [P04_event_PP(tsplit(2):tsplit(3)).latency]/500;
+tt = [H01_event_PP(tsplit(2):tsplit(3)).latency]/500;
 tt = tt - ty(1); ty = ty - ty(1); th = th - th(1);
 %figure; hold on;
 for tDelta = tt
@@ -142,7 +145,7 @@ subplot(2,1,2); plot(ty, Yy); hold on; plot(ty, ypred);
 %}
 
 %%
-sttl = ['Subject P04 PinPrick Trial ',num2str(trl),' - ',yname];
+sttl = ['Subject H01 PinPrick Trial ',num2str(trl),' - ',yname];
 fig(2) = figure; sgtitle(sttl);
 fig(1) = figure; sgtitle(sttl);
 H = floor(sqrt(size(Yy,2)));

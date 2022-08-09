@@ -95,8 +95,8 @@ for subj = 1:size(datafolders,1)
                 'StopbandFrequency2', 61, 'PassbandFrequency2', 62, ...
                 'PassbandRipple1', 1, 'PassbandRipple2', 1, 'StopbandAttenuation', 10, ...
                 'SampleRate', EEG.srate);
-            EEG.data = filtfilt(notch, EEG.data')';
-            EEG = checkset(EEG);
+            EEG.data = single(filtfilt(notch, double(EEG.data'))');
+            EEG = eeg_checkset(EEG);
 
             %inspect raw spectra and reject spectra that are odd looking
             figure; pop_spectopo(EEG, 1, [0  15000], 'EEG' , 'freqrange',[2 100],'electrodes','off');
@@ -410,7 +410,7 @@ for subj = 1:size(datafolders,1)
                 end
             end
 
-            % extract EEG from events 
+            %% extract EEG from events 
             EEG_table = table('RowNames',{'before experiment','after experiment','CPM'});
             EEG_table.BaselineOpen(1) = extractBetweenEvents(EEG, uniqueEvents(openEvInit));
             EEG_table.BaselineOpen(2) = extractBetweenEvents(EEG, uniqueEvents(openEvFin));
@@ -429,6 +429,7 @@ for subj = 1:size(datafolders,1)
 
             % -------------------------------------------------
 
+            %%
             cd(svloc);
             temp_file = [id,' -- preprocessed.mat'];
             save(temp_file, 'EEG', 'EEG_table', 'rejected', ...
@@ -446,7 +447,7 @@ function evs = uniqueEvents(evs)
         if (ev2(1).init_time <= ev1(2).init_time) & (ev2(2).init_time >= ev1(1).init_time)
             % events are not unique (ev2 is contained in or equal to ev1) 
             evs = evs([1:(idx2-1),(idx2+1):end],:);
-        elseif idx2 <= size(evs,1)
+        elseif idx2 < size(evs,1)
             idx2 = idx2 + 1;
         else
             idx1 = idx1 + 1; idx2 = idx1 + 1;
@@ -463,4 +464,5 @@ function outEEG = extractBetweenEvents(inEEG, evs)
         bound(2) = min(inEEG.xmax, bound(2)+buf);
         outEEG(idx) = pop_select(inEEG, 'time', bound);
     end
+    outEEG = {outEEG};
 end

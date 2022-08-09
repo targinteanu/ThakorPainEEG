@@ -20,7 +20,7 @@ end
 scanfiles = scanfiles(sel);
 
     epochT = 4; % s
-    epoch_dt = 4; % s
+    epoch_dt = .2; % s
 
 cd(home); addpath(preproDir);
 svloc = [preproDir,'/Postprocessed ',...
