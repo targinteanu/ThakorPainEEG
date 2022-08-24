@@ -74,8 +74,8 @@ for subj = 1:length(scanfiles)
 end
 
 %% graph baselines of each subj 
-fig(2) = figure; sgtitle(['Baseline ',yname]);
-fig(1) = figure; sgtitle(['Baseline ',yname]);
+fig(2) = figure('Units', 'Normalized', 'Position', [0 0 1 1]); sgtitle(['Baseline ',yname]);
+fig(1) = figure('Units', 'Normalized', 'Position', [0 0 1 1]); sgtitle(['Baseline ',yname]);
 for subj = 1:size(BLs,1)
     fn = scanfiles{subj};
     %{
@@ -234,7 +234,7 @@ for v = testVars
     W = W+1; % plotting channel colors 
 
     disp('plotting time series')
-    fig = figure; sgtitle([yname,' ',v{:}]);
+    fig = figure('Units', 'Normalized', 'Position', [0 0 1 1]); sgtitle([yname,' ',v{:}]);
     idx3 = 0; 
     for subj = 1:length(scanfiles)
         idx3incr = false;
@@ -326,7 +326,7 @@ for v = testVars
     if size(BL,2) > 1
     disp('running hypothesis tests')
     W = W-1;
-    fig = figure; sgtitle([yname,' ',v{:}]);
+    fig = figure('Units', 'Normalized', 'Position', [0 0 1 1]); sgtitle([yname,' ',v{:}]);
     idx3 = 0;
     for subj = 1:length(scanfiles)
         idx3incr = false;
@@ -457,7 +457,7 @@ function [tblOut, toTestTbl, eegTbl, fig] = ...
     baseline = baseline(:,:,2);
 
     tblOut = toTestTbl; 
-    fig = figure; sgtitle(sttl); 
+    fig = figure('Units', 'Normalized', 'Position', [0 0 1 1]); sgtitle(sttl); 
     W = height(toTestTbl); H = width(toTestTbl); idx = 1;
     for c = 1:H
         for r = 1:W
