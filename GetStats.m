@@ -161,7 +161,6 @@ for subj = 1:size(dataTables,1)
     end
     clear EEG_table
 end
-%maxTrialDur = maxTrialDur + timeAfterLast;
 
 %% segment into trials 
 trialTables = cell(size(dataTables));
@@ -169,10 +168,8 @@ for subj = 1:size(dataTables,1)
     fn = scanfiles{subj}
 
     EEG_table = dataTables{subj,2};
-    %EEG_table = makeSubtbl(EEG_table, v);
     EEG_trial = EEG_table;
     tY_table  = dataTables{subj,1};
-    %tY_table  = makeSubtbl(tY_table,  v);
     tY_trial  = tY_table;
 
     for v = testVars
