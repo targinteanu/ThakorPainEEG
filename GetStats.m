@@ -37,7 +37,7 @@ mkdir(svloc); svloc = [svloc,'/'];
 %                         tbl.BaselineOpen('after experiment')];
 table2baseline = @(tbl) tbl.BaselineOpen('before experiment');
 p = .05; % uncertainty level 
-timeBetweenEvents = 5; timeAfterLast = 5; % seconds 
+timeBetweenEvents = 5; timeAfterLast = 3; % seconds 
 baselineTransparency = .1;
 
 dataTables = cell(length(scanfiles),2);
@@ -269,6 +269,33 @@ for subj = 1:size(dataTables,1)
                     startEvs = [startEvs.latency]/EEG.srate;
                     endEvs = [endEvs.latency]/EEG.srate;
 
+                elseif strcmp(v, 'Pressure')
+                    startEvs = evs(~~arrayfun(@(ev) sum(strcmp(ev.type, {'4','8'})), evs));
+                    endEvs   = evs(~~arrayfun(@(ev) sum(strcmp(ev.type, {'5','9'})), evs));
+
+                    % order by time
+                    if length(startEvs) > 1
+                        [~,ord] = sort([startEvs.init_time]); startEvs = startEvs(ord);
+                    end
+                    % match start/end
+                    pressEv = [];
+                    for startEv_ = startEvs
+                        endEvOpts = endEvs([endEvs.init_time] >= startEv_.init_time);
+                        if ~isempty(endEvOpts)
+                            [~, endEv_] = min([endEvOpts.init_time] - startEv_.init_time);
+                            endEv_ = endEvOpts(endEv_);
+                            pressEv = [pressEv; startEv_, endEv_];
+                        end
+                    end
+                    if isempty(pressEv)
+                        startEvs = []; endEvs = [];
+                    else
+                        startEvs = pressEv(:,1); endEvs = pressEv(:,2);
+    
+                        startEvs = [startEvs.latency]/EEG.srate;
+                        endEvs = [endEvs.latency]/EEG.srate;
+                    end
+
                 else
 
                     init_time = [evs.init_time];
@@ -287,6 +314,7 @@ for subj = 1:size(dataTables,1)
 
                 clear t_inter_ev t_before_ev firstOfTrain lastOfTrain prickBefore
                 clear intvlToNext intvlFromPrev timeDiff init_time 
+                clear pressEv startEv_ endEv_ endEvOpts ord
 
                 EEGs = repmat(EEG, size(startEvs));
                 tYs = cell(size(startEvs));
@@ -297,7 +325,7 @@ for subj = 1:size(dataTables,1)
 
                     disp(['Segment ',num2str(idx),' of ',num2str(length(startEvs)),...
                         ' (',num2str(100*idx/length(startEvs),3),'%)'])
-                    curEEG = pop_select(EEG, 'time', [startT, endT]);
+                    curEEG = extractBetweenTimes(EEG, [startT, endT]);
                     curEEG.xmin = curEEG.xmin + startT;
                     curEEG.xmax = curEEG.xmax + startT;
                     curEEG.times = curEEG.times + startT*1000;
@@ -307,6 +335,7 @@ for subj = 1:size(dataTables,1)
                     EEGs(idx) = curEEG;
 
                     ti = (t >= startT) & (t < endT);
+                    ti = ti | [zeros(1,size(ti,2));ti(1:(end-1),:)] | [ti(2:end,:);zeros(1,size(ti,2))] ;
                     curY = Y; curY(~ti) = nan;
                     curT = t; curT(~ti) = nan;
                     tYs{idx} = cat(3,curT,curY);
@@ -544,6 +573,13 @@ function [sel, listOut] = listdlg_selectWrapper(list, SelectionMode, PromptStrin
         end
     end
     listOut = list(sel);
+end
+
+function outEEG = extractBetweenTimes(inEEG, bound)
+    buf = .5; % s
+    bound(1) = max(inEEG.xmin, bound(1)-buf);
+    bound(2) = min(inEEG.xmax, bound(2)+buf);
+    outEEG = pop_select(inEEG, 'time', bound);
 end
 
 %% key functions 
