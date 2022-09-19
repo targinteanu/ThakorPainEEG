@@ -36,7 +36,7 @@ mkdir(svloc); svloc = [svloc,'/'];
 %table2baseline = @(tbl) [tbl.BaselineOpen('before experiment'),...
 %                         tbl.BaselineOpen('after experiment')];
 table2baseline = @(tbl) tbl.BaselineOpen('before experiment');
-p = .05; % uncertainty level 
+p = .01; % uncertainty level 
 timeBetweenEvents = 5; timeAfterLast = 3; % seconds 
 baselineTransparency = .1;
 
@@ -493,6 +493,7 @@ for v = testVars
                             y = Y(:,chan); bl = BL(:,chan);
                             y = y(~isnan(y)); bl = bl(~isnan(bl));
                             if (length(y) > 1) & (length(bl) > 1)
+                                %{
                                 if mean(y) > mean(bl)
                                     %[~,pp(chan)] = ttest2(bl,y, 'Vartype','unequal', 'Tail','left');
                                     [~,pp(chan)] = kstest2(bl,y, 'Tail','larger');
@@ -502,12 +503,20 @@ for v = testVars
                                     [~,pp(chan)] = kstest2(bl,y, 'Tail','smaller');
                                     pp(chan) = pp(chan)-.5;
                                 end
+                                %}
+                                %%{
+                                [~,pval,~,TS] = ttest2(bl,y, 'Vartype','equal', 'Tail','both');
+                                pp(chan) = -TS.tstat; 
+                                %}
                             end
                         end
+                        %topoBnd = 'maxmin';
+                        %topoBnd = [-.5, .5];
+                        topoBnd = tinv(p, TS.df) * [1,-1];
 
                         idx2 = (idx3)*W + idx1; idx3incr = true;
                         subplot(H,W,idx2);
-                        topoplot(pp, EEG.chanlocs, 'maplimits', [-.5,.5]); colorbar;
+                        topoplot(pp, EEG.chanlocs, 'maplimits', topoBnd); colorbar;
                         title([EEG_trial.Properties.RowNames{r},' trial ',num2str(trl)]);
                         ylabel(ylbl);
 
@@ -518,7 +527,7 @@ for v = testVars
         end
         idx3 = idx3 + idx3incr;
     end 
-    saveas(fig, [svloc,yname,'_',v{:},'_Trial_Head_Map'], 'fig');
+    %saveas(fig, [svloc,yname,'_',v{:},'_Trial_Head_Map'], 'fig');
     end
     clear idx1 indx2 EEG_trial tY_trial EEGs tYs EEG tY Y_t Y BL BL_t...
           pp ttl ylbl strend chan y bl;
