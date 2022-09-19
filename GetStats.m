@@ -42,6 +42,8 @@ baselineTransparency = .1;
 
 dataTables = cell(length(scanfiles),2);
 BLs = cell(length(scanfiles),2);
+templim1 = inf; templim2 = -inf;
+templim3 = inf; templim4 = -inf;
 for subj = 1:length(scanfiles)
     fn = scanfiles{subj}
     load(fn);
@@ -61,6 +63,12 @@ for subj = 1:length(scanfiles)
     dof = n - 1; % deg of freedom 
     SE = std(BLY, 'omitnan') ./ sqrt(n); % standard error
     BL_CI = mean(BLY, 'omitnan') + [-1; 0; 1] .* tinv(p, dof).*SE;
+
+    templim1 = min(templim1, min(BL_CI(3,:)));
+    templim2 = max(templim2, max(BL_CI(1,:)));
+    templim3 = min(templim1, min(BL_CI(2,:)));
+    templim4 = max(templim2, max(BL_CI(2,:)));
+
     BLs{subj,1} = BL_CI; BLs{subj,2} = BL;
     clear BL_Epoch BL_EpochSpec t Y idx dof SE BLY BL BL_CI n
 
@@ -118,7 +126,9 @@ for subj = 1:size(BLs,1)
         end
         ylim(templims);
     else
-        templims = 'maxmin';
+        templims = [templim1, templim2] .* [.99, 1.01];
+        ylim(templims);
+        templims = [templim3, templim4] .* [.99, 1.01];
     end
 
     if length(BL(2,:)) > 1
@@ -527,7 +537,7 @@ for v = testVars
         end
         idx3 = idx3 + idx3incr;
     end 
-    %saveas(fig, [svloc,yname,'_',v{:},'_Trial_Head_Map'], 'fig');
+    saveas(fig, [svloc,yname,'_',v{:},'_Trial_Head_Map'], 'fig');
     end
     clear idx1 indx2 EEG_trial tY_trial EEGs tYs EEG tY Y_t Y BL BL_t...
           pp ttl ylbl strend chan y bl;
