@@ -17,22 +17,22 @@ P04 = load([fp,'2021-10-14 CP P04 --- 20211014_1308.mat -- preprocessed.mat -- p
 
 H01_Epoch_t_PP    = H01.Epoch_table.PinPrick('after experiment');
 H01_Epoch_t_PPCPM = H01.Epoch_table.PinPrick('CPM');
-P04_Epoch_t_PP    = P04.Epoch_table.PinPrick('before experiment');
+P04_Epoch_t_PP    = P04.Epoch_table.PinPrick('after experiment');
 P04_Epoch_t_PPCPM = P04.Epoch_table.PinPrick('CPM');
 
 H01_Epoch_w_PP    = H01.EpochSpec_table.PinPrick('after experiment');
 H01_Epoch_w_PPCPM = H01.EpochSpec_table.PinPrick('CPM');
-P04_Epoch_w_PP    = P04.EpochSpec_table.PinPrick('before experiment');
+P04_Epoch_w_PP    = P04.EpochSpec_table.PinPrick('after experiment');
 P04_Epoch_w_PPCPM = P04.EpochSpec_table.PinPrick('CPM');
 
 H01_t_PP    = H01.EEG_table.PinPrick('after experiment');
 H01_t_PPCPM = H01.EEG_table.PinPrick('CPM');
-P04_t_PP    = P04.EEG_table.PinPrick('before experiment');
+P04_t_PP    = P04.EEG_table.PinPrick('after experiment');
 P04_t_PPCPM = P04.EEG_table.PinPrick('CPM');
 
 H01_w_PP    = H01.Spec_table.PinPrick('after experiment');
 H01_w_PPCPM = H01.Spec_table.PinPrick('CPM');
-P04_w_PP    = P04.Spec_table.PinPrick('before experiment');
+P04_w_PP    = P04.Spec_table.PinPrick('after experiment');
 P04_w_PPCPM = P04.Spec_table.PinPrick('CPM');
 
 H01_Epoch_t_BL = H01.Epoch_table.BaselineOpen('before experiment');
@@ -93,12 +93,12 @@ clear H01 P04
 [fcn, yname, ylims] = MeasurementSelector();
 
 %%
-[Y,t] = fcn(H01_Epoch_w_PP, H01_Epoch_t_PP); t = t(:,1);
-BL = fcn(H01_w_BL, H01_t_BL); 
-BLe = fcn(H01_Epoch_w_BL, H01_Epoch_t_BL); 
+[Y,t] = fcn(P04_Epoch_w_PP, P04_Epoch_t_PP); t = t(:,1);
+BL = fcn(P04_w_BL, P04_t_BL); 
+BLe = fcn(P04_Epoch_w_BL, P04_Epoch_t_BL); 
 % Y = Y - BL; % remove baseline 
 Y = (Y - BL)./(std(BLe)/sqrt(size(BLe,1))); % t statistic 
-chloc = H01_t_BL.chanlocs;
+chloc = P04_t_BL.chanlocs;
 %Y = Y(:,14); chloc = chloc(14); % cz
 
 %{
@@ -107,9 +107,9 @@ flt = designfilt('highpassiir', 'SampleRate', 1/mean(diff(t)), ...
 Y = filtfilt(flt, Y);
 %}
 %%
-trl = 2;
-tsplit = H01_boundTimes_PP(trl,:);
-tt = [H01_event_PP(tsplit).latency]/500;
+trl = 4;
+tsplit = P04_boundTimes_PP(trl,:);
+tt = [P04_event_PP(tsplit).latency]/500;
 hbnd = tt(1:2) + [0,-.5]; ybnd = tt(2:3);
 h_idx = (t <= hbnd(2)) & (t >= hbnd(1));
 y_idx = (t <= ybnd(2)) & (t >= ybnd(1));
@@ -117,10 +117,10 @@ Yh = Y(h_idx,:); Yy = Y(y_idx,:);
 th = t(h_idx);   ty = t(y_idx);
 
 figure; plot(th, Yh); xlabel('time (s)'); ylabel(yname);
-title(['Subject H01 PinPrick Trial ',num2str(trl),' - Impulse Response']);
+title(['Subject P04 PinPrick Trial ',num2str(trl),' - Impulse Response']);
 
 ypred = zeros(size(Yy));
-tt = [H01_event_PP(tsplit(2):tsplit(3)).latency]/500;
+tt = [P04_event_PP(tsplit(2):tsplit(3)).latency]/500;
 tt = tt - ty(1); ty = ty - ty(1); th = th - th(1);
 %figure; hold on;
 for tDelta = tt
@@ -145,7 +145,7 @@ subplot(2,1,2); plot(ty, Yy); hold on; plot(ty, ypred);
 %}
 
 %%
-sttl = ['Subject H01 PinPrick Trial ',num2str(trl),' - ',yname];
+sttl = ['Subject P04 PinPrick Trial ',num2str(trl),' - ',yname];
 fig(2) = figure; sgtitle(sttl);
 fig(1) = figure; sgtitle(sttl);
 H = floor(sqrt(size(Yy,2)));
