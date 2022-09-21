@@ -65,15 +65,21 @@ for subj = 1:length(scanfiles)
 
     % get events ----------------------------------------------------------
     evStructs = cell(3,2);
-    tempEv = objStructs{3,1}(1).event;
-    evStructs{1,1} = tempEv(strcmp({tempEv.type}, '11'));
-    tempEv = objStructs{3,2}(1).event;
-    evStructs{1,2} = tempEv(strcmp({tempEv.type}, '10'));
-    clear tempEv
-    for idx = 1:size(evStructs,2)
-        evStructs{2,idx} = eventBoundTimes(evStructs{1,idx});
-        evStructs{3,idx} = objStructs{3,idx}(1).srate;
+    tempEv = objStructs{3,1}; 
+    if ~isempty(tempEv)
+        tempEv = tempEv(1).event;
+        evStructs{1,1} = tempEv(strcmp({tempEv.type}, '11'));
+        evStructs{2,1} = eventBoundTimes(evStructs{1,1});
+        evStructs{3,1} = objStructs{3,1}(1).srate;
     end
+    tempEv = objStructs{3,2}; 
+    if ~isempty(tempEv)
+        tempEv = tempEv(1).event;
+        evStructs{1,2} = tempEv(strcmp({tempEv.type}, '10'));
+        evStructs{2,2} = eventBoundTimes(evStructs{1,2});
+        evStructs{3,2} = objStructs{3,2}(1).srate;
+    end
+    clear tempEv
 
 %{
 Pt_Epoch_t_PP    = PtLd.Epoch_table.PinPrick('after experiment');
@@ -114,11 +120,14 @@ Pt_boundTimes_PPCPM = eventBoundTimes(Pt_event_PPCPM);
 %}
 
     % calculations --------------------------------------------------------
+    BL = fcn(objStructs{4,3}, objStructs{3,3});
+    BLe = fcn(objStructs{2,3}, objStructs{1,3});
+
     for cond = 1:size(evStructs,2)
         % cond: 1 = no CPM, 2 = CPM
+        if ~isempty(objStructs{1,cond})
+
         [Y,t] = fcn(objStructs{2,cond}, objStructs{1,cond}); t = t(:,1);
-        BL = fcn(objStructs{4,3}, objStructs{3,3});
-        BLe = fcn(objStructs{2,3}, objStructs{1,3});
         %Y = Y - BL; % remove baseline
         Y = (Y - BL)./(std(BLe)/sqrt(size(BLe,1))); % t statistic
         chloc = objStructs{3,3}.chanlocs;
@@ -158,8 +167,10 @@ Pt_boundTimes_PPCPM = eventBoundTimes(Pt_event_PPCPM);
             end
         end
         RPs{subj, cond, 1} = RP; RPs{subj, cond, 2} = chloc;
-        clear RP chloc T Y t tt tsplit BL BLe ypred Yy Yh th ty h_idx y_idx hbnd srate
+        clear RP chloc T Y t tt tsplit ypred Yy Yh th ty h_idx y_idx hbnd srate
+        end
     end
+    clear BL BLe
 
 end
 
@@ -180,6 +191,7 @@ for subj = 1:length(scanfiles)
     chloc = RPs{subj,1,2};
     chloc_CPM = RPs{subj,2,2};
 
+    if ~isempty(RP)
     for trl = 1:size(RP,3)
         idx = W*(subj-1) + trl;
         figure(fig(1)); subplot(H,W,idx);
@@ -189,7 +201,9 @@ for subj = 1:length(scanfiles)
         title([num2str(trl),' ',pname]);
         topoplot(RP(2,:,trl), chloc, 'maplimits',[0 1]); colorbar;
     end
+    end
 
+    if ~isempty(RP_CPM)
     for trl = 1:size(RP_CPM,3)
         idx = W*subj - trl + 1;
         figure(fig(1)); subplot(H,W,idx);
@@ -199,6 +213,7 @@ for subj = 1:length(scanfiles)
         title(['CPM ',num2str(trl),' ',pname]);
         topoplot(RP_CPM(2,:,trl), chloc, 'maplimits',[0 1]); colorbar;
     end
+    end
 end
 
 %% saving 
@@ -207,6 +222,16 @@ saveas(fig(1), [svloc,yname,' - correlation'], 'fig');
 saveas(fig(2), [svloc,yname,' - p value'], 'fig');
 
 %% helper functions 
+function T = eventBoundKNN(evs)
+    % not functional - expand??
+
+    intvl = diff([evs.init_time]);
+    [idx, C] = kmeans(log(intvl)', 3);
+    [~,ord] = sort(C); idx = ord(idx);
+
+    T = 0;
+end
+
 function T = eventBoundTimes(evs)
     intvl = diff([evs.init_time]); 
     intvlFromPrev = [inf, intvl]; intvlToNext = [intvl, inf];
