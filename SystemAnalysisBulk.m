@@ -150,7 +150,7 @@ Pt_boundTimes_PPCPM = eventBoundTimes(Pt_event_PPCPM);
             ypred = zeros(size(Yy));
             tt = tt(2:3);
 
-            if ~isempty(ty) & ~isempty(th)
+            if ~isempty(ty) & (length(th)>1)
                 tt = tt - ty(1); ty = ty - ty(1); th = th - th(1);
 
                 for tDelta = tt
