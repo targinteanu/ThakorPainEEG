@@ -136,7 +136,7 @@ Pt_boundTimes_PPCPM = eventBoundTimes(Pt_event_PPCPM);
         srate = evStructs{3,cond};
         T = evStructs{2,cond};
         T = T(T(:,1)>=0, :);
-        RP = zeros(2, size(Y,2), size(T,1)); RP(:,2,:) = 1;
+        RP = zeros(2, size(Y,2), size(T,1)); RP(2,:,:) = 1;
         for trl = 1:size(T,1)
             tsplit = T(trl,:);
             tt = [evStructs{1,cond}(tsplit).latency]/srate;
