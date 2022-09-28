@@ -239,8 +239,10 @@ end
 Mkr = {'o', 'x', '^', 's', 'v', 'p', '+', 'd', 'h', '*'};
 fig(3) = figure('Units', 'Normalized', 'Position', [0 0 .5 1]); sgtitle([yname, ' - System in-out']);
 for subj = 1:length(scanfiles)
+    fn = scanfiles{subj};
+    pname = fn(1:3);
     for cond = 1:2 % more robust?
-        idx = W*(subj-1) + cond; 
+        idx = 2*(subj-1) + cond; 
         figure(fig(3)); subplot(H, 2, idx); hold on;
         Yin = Ys{subj, cond, 1}; Yout = Ys{subj, cond, 2};
         chloc = RPs{subj, cond, 2};
