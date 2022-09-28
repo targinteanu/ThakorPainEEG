@@ -27,7 +27,7 @@ svloc = [postproDir,'/System ',...
 [fcn, yname, ylims] = MeasurementSelector();
 
 %% loading 
-RPs = cell(length(scanfiles), 2, 2);
+RPs = cell(length(scanfiles), 2, 2); Ys = RPs;
 for subj = 1:length(scanfiles)
     fn = scanfiles{subj}
     PtLd = load(fn);
@@ -137,6 +137,7 @@ Pt_boundTimes_PPCPM = eventBoundTimes(Pt_event_PPCPM);
         T = evStructs{2,cond};
         T = T(T(:,1)>=0, :);
         RP = zeros(2, size(Y,2), size(T,1)); RP(2,:,:) = 1;
+        Yin = nan(size(Y,1), size(Y,2), size(T,1)); Yout = Yin;
         for trl = 1:size(T,1)
             tsplit = T(trl,:);
             tt = [evStructs{1,cond}(tsplit).latency]/srate;
@@ -164,9 +165,12 @@ Pt_boundTimes_PPCPM = eventBoundTimes(Pt_event_PPCPM);
                 for idx = 1:size(Yy,2)
                     [RP(1,idx,trl), RP(2,idx,trl)] = corr(ypred(:,idx), Yy(:,idx));
                 end
+                Yin(1:size(ypred,1),1:size(ypred,2),trl) = ypred; 
+                Yout(1:size(Yy,1),1:size(Yy,2),trl) = Yy;
             end
         end
         RPs{subj, cond, 1} = RP; RPs{subj, cond, 2} = chloc;
+        Ys{subj, cond, 1} = Yin; Ys{subj, cond, 2} = Yout;
         clear RP chloc T Y t tt tsplit ypred Yy Yh th ty h_idx y_idx hbnd srate
         end
     end
@@ -175,12 +179,14 @@ Pt_boundTimes_PPCPM = eventBoundTimes(Pt_event_PPCPM);
 end
 
 %% plotting 
+Mkr = {'o', 'x', '^', 's', 'v', 'p', '+', 'd', 'h', '*'};
 maxNumTrl = 0;
 for subj = 1:length(scanfiles)
     numTrl = size(RPs{subj, 1, 1},3) + size(RPs{subj, 2, 1},3);
     maxNumTrl = max(maxNumTrl, numTrl);
 end
 W = maxNumTrl; H = length(scanfiles);
+fig(3) = figure('Units', 'Normalized', 'Position', [0 0 .5 1]); sgtitle([yname, ' - System in-out']);
 fig(2) = figure('Units', 'Normalized', 'Position', [0 0 1 1]); sgtitle([yname, ' - System p']);
 fig(1) = figure('Units', 'Normalized', 'Position', [0 0 1 1]); sgtitle([yname, ' - System \rho']);
 for subj = 1:length(scanfiles)
@@ -214,12 +220,33 @@ for subj = 1:length(scanfiles)
         topoplot(RP_CPM(2,:,trl), chloc, 'maplimits',[0 1]); colorbar;
     end
     end
+
+    for cond = 1:2 % more robust?
+        idx = W*(subj-1) + cond; 
+        figure(fig(3)); subplot(H, 2, idx); hold on;
+        Yin = Ys{subj, cond, 1}; Yout = Ys{subj, cond, 2};
+        chloc = RPs{subj, cond, 2};
+        for trl = 1:size(Yin, 3)
+            for ch = 1:size(Yin, 2)
+                plot(Yin(:,ch,trl), Yout(:,ch,trl), Mkr{trl}, ...
+                    'Color', chanColor(chloc(ch), chloc));
+            end
+        end
+        grid on; 
+        xlabel('LTI pred'); ylabel('actual');
+        if cond == 1
+            title(pname);
+        elseif cond == 2
+            title([pname,' CPM']);
+        end
+    end
 end
 
 %% saving 
 mkdir(svloc); svloc = [svloc,'/'];
 saveas(fig(1), [svloc,yname,' - correlation'], 'fig');
 saveas(fig(2), [svloc,yname,' - p value'], 'fig');
+saveas(fig(3), [svloc,yname,' - in-out'], 'fig');
 
 %% helper functions 
 function T = eventBoundKNN(evs)
@@ -272,6 +299,23 @@ function T = eventBoundTimes(evs)
     end
 
     T = [ev0; evStart; evEnd]; T = T';
+end
+
+function rgb = chanColor(chloc, chlocs)
+    if isempty(chloc.X)
+        chloc.X = 0;
+    end
+    if isempty(chloc.Y)
+        chloc.Y = 0;
+    end
+    if isempty(chloc.Z)
+        chloc.Z = 0;
+    end
+    allXYZ = [chlocs.X; chlocs.Y; chlocs.Z]';
+    chXYZ  = [chloc.X;  chloc.Y;  chloc.Z ]';
+    chXYZ = chXYZ - min(allXYZ);
+    allXYZ = allXYZ - min(allXYZ);
+    rgb = chXYZ./max(allXYZ);
 end
 
 function [sel, listOut] = listdlg_selectWrapper(list, SelectionMode, PromptString)
