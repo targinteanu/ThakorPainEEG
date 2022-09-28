@@ -179,16 +179,15 @@ Pt_boundTimes_PPCPM = eventBoundTimes(Pt_event_PPCPM);
 end
 
 %% plotting 
-Mkr = {'o', 'x', '^', 's', 'v', 'p', '+', 'd', 'h', '*'};
 maxNumTrl = 0;
 for subj = 1:length(scanfiles)
     numTrl = size(RPs{subj, 1, 1},3) + size(RPs{subj, 2, 1},3);
     maxNumTrl = max(maxNumTrl, numTrl);
 end
 W = maxNumTrl; H = length(scanfiles);
-fig(3) = figure('Units', 'Normalized', 'Position', [0 0 .5 1]); sgtitle([yname, ' - System in-out']);
 fig(2) = figure('Units', 'Normalized', 'Position', [0 0 1 1]); sgtitle([yname, ' - System p']);
 fig(1) = figure('Units', 'Normalized', 'Position', [0 0 1 1]); sgtitle([yname, ' - System \rho']);
+allchan = [];
 for subj = 1:length(scanfiles)
     fn = scanfiles{subj};
     pname = fn(1:3);
@@ -196,6 +195,7 @@ for subj = 1:length(scanfiles)
     RP_CPM = RPs{subj, 2, 1};
     chloc = RPs{subj,1,2};
     chloc_CPM = RPs{subj,2,2};
+    allchan = [allchan, chloc, chloc_CPM];
 
     if ~isempty(RP)
     for trl = 1:size(RP,3)
@@ -220,7 +220,25 @@ for subj = 1:length(scanfiles)
         topoplot(RP_CPM(2,:,trl), chloc, 'maplimits',[0 1]); colorbar;
     end
     end
+end
 
+%% channel selection 
+figure; hold on;
+[~,idx] = unique({allchan.labels}); 
+allchan = allchan(idx);
+for chan = allchan
+    plot3(chan.X, chan.Y, chan.Z, '.', ...
+        'Color', chanColor(chan, allchan));
+    text(chan.X, chan.Y, chan.Z, chan.labels, ...
+        'Color', chanColor(chan, allchan));
+end
+[chansel, chanselName] = listdlg_selectWrapper({allchan.labels}, ...
+    'multiple', 'Select Channels:');
+
+%% plotting in-out 
+Mkr = {'o', 'x', '^', 's', 'v', 'p', '+', 'd', 'h', '*'};
+fig(3) = figure('Units', 'Normalized', 'Position', [0 0 .5 1]); sgtitle([yname, ' - System in-out']);
+for subj = 1:length(scanfiles)
     for cond = 1:2 % more robust?
         idx = W*(subj-1) + cond; 
         figure(fig(3)); subplot(H, 2, idx); hold on;
@@ -228,8 +246,10 @@ for subj = 1:length(scanfiles)
         chloc = RPs{subj, cond, 2};
         for trl = 1:size(Yin, 3)
             for ch = 1:size(Yin, 2)
-                plot(Yin(:,ch,trl), Yout(:,ch,trl), Mkr{trl}, ...
-                    'Color', chanColor(chloc(ch), chloc));
+                if sum(strcmp(chloc(ch).labels, chanselName))
+                    plot(Yin(:,ch,trl), Yout(:,ch,trl), Mkr{trl}, ...
+                        'Color', chanColor(chloc(ch), chloc));
+                end
             end
         end
         grid on; 
