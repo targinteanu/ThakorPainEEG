@@ -237,13 +237,14 @@ end
 
 %% plotting in-out 
 Mkr = {'o', 'x', '^', 's', 'v', 'p', '+', 'd', 'h', '*'};
-fig(3) = figure('Units', 'Normalized', 'Position', [0 0 1 .3]); sgtitle([yname, ' - System in-out']);
+fig(3) = figure('Units', 'Normalized', 'Position', [0 0 1 1]); sgtitle([yname, ' - System in-out']);
+H = 4; W = ceil(2*length(scanfiles)/H); % more robust?
 for subj = 1:length(scanfiles)
     fn = scanfiles{subj};
     pname = fn(1:3);
     for cond = 1:2 % more robust?
-        idx = subj + H*(cond-1);
-        figure(fig(3)); subplot(2, H, idx); hold on;
+        idx = mod(subj-1, W)+1 + (2*(ceil(subj/W)-1) + cond-1)*W;
+        figure(fig(3)); subplot(H, W, idx); hold on;
         Yin = Ys{subj, cond, 1}; Yout = Ys{subj, cond, 2};
         chloc = RPs{subj, cond, 2};
         for trl = 1:size(Yin, 3)
