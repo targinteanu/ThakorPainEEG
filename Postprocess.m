@@ -20,7 +20,7 @@ end
 scanfiles = scanfiles(sel);
 
     epochT = 4; % s
-    epoch_dt = .2; % s
+    epoch_dt = .15; % s
 
 cd(home); addpath(preproDir);
 svloc = [preproDir,'/Postprocessed ',...
@@ -38,6 +38,8 @@ mkdir(svloc);
 for subj = 1:size(scanfiles,1)
     fn = scanfiles(subj,1).name
     load(fn);
+
+    EEG_table = makeSubtbl(EEG_table, {'PinPrick', 'BaselineOpen'});
 
     % order by longest duration 
     %%{
@@ -127,4 +129,8 @@ function [SpecStruct, Y, w, P, wP] = fftPlot(y, fs)
     Y = fftshift(Y); Y = Y';
     SpecStruct.frequencySpectrum = Y; SpecStruct.frequency2side = w; 
     SpecStruct.powerSpectrum = P; SpecStruct.frequency1side = wP;
+end
+
+function subtbl = makeSubtbl(tbl, vars)
+    subtbl = tbl(:, ismember(tbl.Properties.VariableNames, vars));
 end
