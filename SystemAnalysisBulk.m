@@ -129,7 +129,7 @@ Pt_boundTimes_PPCPM = eventBoundTimes(Pt_event_PPCPM);
 
         [Y,t] = fcn(objStructs{2,cond}, objStructs{1,cond}); t = t(:,1);
         %Y = Y - BL; % remove baseline
-        Y = (Y - BL)./(std(BLe)/sqrt(size(BLe,1))); % t statistic
+        %Y = (Y - BL)./(std(BLe)/sqrt(size(BLe,1))); % t statistic
         chloc = objStructs{3,3}.chanlocs;
         %Y = Y(:,14); chloc = chloc(14); % cz
 
@@ -244,7 +244,7 @@ for subj = 1:length(scanfiles)
     pname = fn(1:3);
     for cond = 1:2 % more robust?
         idx = mod(subj-1, W)+1 + (2*(ceil(subj/W)-1) + cond-1)*W;
-        figure(fig(3)); subplot(H, W, idx); hold on;
+        figure(fig(3)); ax(idx) = subplot(H, W, idx); hold on;
         Yin = Ys{subj, cond, 1}; Yout = Ys{subj, cond, 2};
         chloc = RPs{subj, cond, 2};
         for trl = 1:size(Yin, 3)
@@ -264,6 +264,7 @@ for subj = 1:length(scanfiles)
         end
     end
 end
+linkaxes(ax);
 
 %% saving 
 mkdir(svloc); svloc = [svloc,'/'];
