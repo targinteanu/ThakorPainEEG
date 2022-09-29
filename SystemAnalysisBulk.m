@@ -27,7 +27,7 @@ svloc = [postproDir,'/System ',...
 [fcn, yname, ylims] = MeasurementSelector();
 
 %% loading 
-RPs = cell(length(scanfiles), 2, 2); Ys = RPs;
+RPs = cell(length(scanfiles), 2, 2); Ys = cell(length(scanfiles), 2, 3);
 for subj = 1:length(scanfiles)
     fn = scanfiles{subj}
     PtLd = load(fn);
@@ -137,7 +137,7 @@ Pt_boundTimes_PPCPM = eventBoundTimes(Pt_event_PPCPM);
         T = evStructs{2,cond};
         T = T(T(:,1)>=0, :);
         RP = zeros(2, size(Y,2), size(T,1)); RP(2,:,:) = 1;
-        Yin = nan(size(Y,1), size(Y,2), size(T,1)); Yout = Yin;
+        Yin = nan(size(Y,1), size(Y,2), size(T,1)); Yout = Yin; Yir = Yin;
         for trl = 1:size(T,1)
             tsplit = T(trl,:);
             tt = [evStructs{1,cond}(tsplit).latency]/srate;
@@ -167,10 +167,11 @@ Pt_boundTimes_PPCPM = eventBoundTimes(Pt_event_PPCPM);
                 end
                 Yin(1:size(ypred,1),1:size(ypred,2),trl) = ypred; 
                 Yout(1:size(Yy,1),1:size(Yy,2),trl) = Yy;
+                Yir(1:size(Yh,1),1:size(Yh,2),trl) = Yh;
             end
         end
         RPs{subj, cond, 1} = RP; RPs{subj, cond, 2} = chloc;
-        Ys{subj, cond, 1} = Yin; Ys{subj, cond, 2} = Yout;
+        Ys{subj, cond, 1} = Yin; Ys{subj, cond, 2} = Yout; Ys{subj, cond, 3} = Yir;
         clear RP chloc T Y t tt tsplit ypred Yy Yh th ty h_idx y_idx hbnd srate
         end
     end
@@ -237,6 +238,7 @@ end
 
 %% plotting in-out 
 Mkr = {'o', 'x', '^', 's', 'v', 'p', '+', 'd', 'h', '*'};
+fig(4) = figure('Units', 'Normalized', 'Position', [0 0 1 1]); sgtitle([yname, ' - System IR']);
 fig(3) = figure('Units', 'Normalized', 'Position', [0 0 1 1]); sgtitle([yname, ' - System in-out']);
 H = 4; W = ceil(2*length(scanfiles)/H); % more robust?
 for subj = 1:length(scanfiles)
@@ -244,7 +246,8 @@ for subj = 1:length(scanfiles)
     pname = fn(1:3);
     for cond = 1:2 % more robust?
         idx = mod(subj-1, W)+1 + (2*(ceil(subj/W)-1) + cond-1)*W;
-        figure(fig(3)); ax(idx) = subplot(H, W, idx); hold on;
+
+        figure(fig(3)); ax3(idx) = subplot(H, W, idx); hold on;
         Yin = Ys{subj, cond, 1}; Yout = Ys{subj, cond, 2};
         chloc = RPs{subj, cond, 2};
         for trl = 1:size(Yin, 3)
@@ -262,15 +265,34 @@ for subj = 1:length(scanfiles)
         elseif cond == 2
             title([pname,' CPM']);
         end
+
+        figure(fig(4)); ax4(idx) = subplot(H,W,idx); hold on; 
+        Yir = Ys{subj, cond, 3};
+        for trl = 1:size(Yir, 3)
+            for ch = 1:size(Yir, 2)
+                if sum(strcmp(chloc(ch).labels, chanselName))
+                    plot(Yir(:,ch,trl), ['-',Mkr{trl}], ...
+                        'Color', chanColor(chloc(ch), chloc));
+                end
+            end
+        end
+        grid on; 
+        xlabel('timestep'); ylabel(yname);
+        if cond == 1
+            title(pname);
+        elseif cond == 2
+            title([pname,' CPM']);
+        end
     end
 end
-linkaxes(ax);
+linkaxes(ax3); linkaxes(ax4);
 
 %% saving 
 mkdir(svloc); svloc = [svloc,'/'];
 saveas(fig(1), [svloc,yname,' - correlation'], 'fig');
 saveas(fig(2), [svloc,yname,' - p value'], 'fig');
 saveas(fig(3), [svloc,yname,' - in-out'], 'fig');
+saveas(fig(4), [svloc,yname,' - IR'], 'fig');
 
 %% helper functions 
 function T = eventBoundKNN(evs)
