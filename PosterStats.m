@@ -26,11 +26,16 @@ maxNgrp = max( arrayfun(@(s) length(scanfiles{s}), 1:length(scanfiles)) );
 cd(home); addpath(postproDir);
 svloc = [postproDir,'/Poster Stats ',...
     datestr(datetime, 'yyyy-mm-dd HH.MM.SS')];
-mkdir(svloc); svloc = [svloc,'/'];
+%mkdir(svloc); svloc = [svloc,'/'];
 
 %% select what to plot
 
 [fcn, yname, ylims] = MeasurementSelector();
+
+% restructure: make 1 table with rows of Epoch_table, EEG_table, Spec_table
+% EpochSpec_table and cols of BaselineOpen_before, BaselineOpen_after,
+% pinprick, tempstim (the last 2 before & after combined; ignore CPM)
+% or make rows patients??
 
 [~,testVars] = listdlg_selectWrapper(...
     {'TempStim', 'PinPrick', 'Pressure', 'BaselineOpen', 'BaselineClosed', 'BaselineIce'}, ...
@@ -43,18 +48,57 @@ DATATABLES = cell(size(scanfiles));
 for s = 1:length(scanfiles)
     sf = scanfiles{s};
 
-    dataTables = cell(length(sf),2);
+    dataTables = cell(length(sf),1);
     for subj = 1:length(sf)
         fn = sf{subj}
         load(fn);
 
         % run calculations on desired variables
         disp('calculating desired variables')
+        tempTbl = table('RowNames',{'EEG_all','tY_all','tY_trial'});
+
+        tempArr = EEG_table.BaselineOpen('before experiment');
+        tempTbl.BaselineBefore('EEG_all') = tempArr{1}; % need to wrap in {}?
+        curSpec = EpochSpec_table.BaselineOpen('before experiment'); curSpec = curSpec{:};
+        curEpoc = Epoch_table.BaselineOpen('before experiment');     curEpoc = curEpoc{:};
+        [Y,t] = fcn(curSpec, curEpoc); 
+        tempTbl.BaselineBefore('tY_all') = cat(3,t,Y); % need to wrap in {}?
+
+        tempArr = EEG_table.BaselineOpen('after experiment');
+        tempTbl.BaselineAfter('EEG_all') = tempArr{1}; % need to wrap in {}?
+        curSpec = EpochSpec_table.BaselineOpen('after experiment'); curSpec = curSpec{:};
+        curEpoc = Epoch_table.BaselineOpen('after experiment');     curEpoc = curEpoc{:};
+        [Y,t] = fcn(curSpec, curEpoc); 
+        tempTbl.BaselineAfter('tY_all') = cat(3,t,Y); % need to wrap in {}?
+
+        tempArr1 = EEG_table.TempStim('before experiment'); tempArr2 = EEG_table.TempStim('after experiment');
+        tempArr = [tempArr1{:} tempArr2{:}];
+        tempTbl.TempStim('EEG_all') = tempArr; % need to wrap in {}?
+        tempArr1 = Epoch_table.TempStim('before experiment'); tempArr2 = Epoch_table.TempStim('after experiment');
+        curEpoc = [tempArr1{:} tempArr2{:}];
+        tempArr1 = EpochSpec_table.TempStim('before experiment'); tempArr2 = EpochSpec_table.TempStim('after experiment');
+        curSpec = [tempArr1{:} tempArr2{:}];
+        [Y,t] = fcn(curSpec, curEpoc);
+        tempTbl.TempStim('tY_all') = cat(3,t,Y); % need to wrap in {}?
+
+        tempArr1 = EEG_table.PinPrick('before experiment'); tempArr2 = EEG_table.PinPrick('after experiment');
+        tempArr = [tempArr1{:} tempArr2{:}];
+        tempTbl.PinPrick('EEG_all') = tempArr; % need to wrap in {}?
+        tempArr1 = Epoch_table.PinPrick('before experiment'); tempArr2 = Epoch_table.PinPrick('after experiment');
+        curEpoc = [tempArr1{:} tempArr2{:}];
+        tempArr1 = EpochSpec_table.PinPrick('before experiment'); tempArr2 = EpochSpec_table.PinPrick('after experiment');
+        curSpec = [tempArr1{:} tempArr2{:}];
+        [Y,t] = fcn(curSpec, curEpoc);
+        tempTbl.PinPrick('tY_all') = cat(3,t,Y); % need to wrap in {}?
+
+        %{
         [tY_table, EEG_table] = ...
             fcnTbl(EEG_table, Epoch_table, EpochSpec_table, fcn, testVars);
+        %}
 
-        dataTables{subj,1} = tY_table; dataTables{subj,2} = EEG_table;
-        clear tY_table EEG_table Epoch_table EpochSpec_table Spec_table
+        dataTables{subj} = tempTbl;
+        clear tempTbl tempArr tempArr1 tempArr2 curEpoc curSpec
+        clear tempTbl EEG_table Epoch_table EpochSpec_table Spec_table
     end
 
     DATATABLES{s} = dataTables;
