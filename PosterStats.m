@@ -342,7 +342,7 @@ end
 clear sf dataTable dataTables EEG
 
 figure; hold on;
-[~,idx] = unique({upper(allchan.labels)}); 
+[~,idx] = unique(upper({allchan.labels})); 
 allchan = allchan(idx);
 for chan = allchan
     plot3(chan.X, chan.Y, chan.Z, '.', ...
@@ -369,7 +369,7 @@ for s = 1:length(scanfiles)
 
         for c = 1:width(dataTable)
                 v = dataTable.Properties.VariableNames{c};
-                tY_trial = dataTable{4, c};
+                tY_trial = dataTable{4, c}{1}{1}; % extra wrapping shouldn't be necessary?
                 EEG_all  = dataTable{1, c}{1};
 
                 Y_val = zeros(length(tY_trial), size(tY_trial{1},2));
@@ -395,8 +395,10 @@ for s = 1:length(scanfiles)
 
                     ylabel(['Channel ',chName]);
                     xticks(length(scanfiles)*(maxNgrp+spc1)*spc2*...
-                        ((1:width(dataTable))-.5));
+                        ((1:width(dataTable))-1) + maxNgrp+spc1);
                     xticklabels(dataTable.Properties.VariableNames);
+                    xlim([-spc2, ...
+                        length(scanfiles)*(maxNgrp+spc1)*spc2*width(dataTable)]);
 
                     errorbar(xplt*ones(size(yplt)), yplt, yplte, ...
                         'Color',clr{s}, 'Marker',mkr{subj});
