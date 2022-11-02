@@ -46,7 +46,7 @@ for s = 1:length(scanfiles)
 
         % run calculations on desired variables
         disp('calculating desired variables')
-        tempTbl = table('RowNames',{'EEG_all','tY_all','tY_trial'});
+        tempTbl = table('RowNames',{'EEG_all','EEG_trial','tY_all','tY_trial'});
 
         tempArr = EEG_table.BaselineOpen('before experiment');
         tempTbl.BaselineBefore('EEG_all') = tempArr; 
@@ -96,32 +96,30 @@ for s = 1:length(scanfiles)
     clear sf dataTables
 end
 
-%% determine max trial duration 
+%% determine max trial duration
 disp('determining trial durations')
 maxTrialDur = 0; % s
 for DT = 1:length(DATATABLES)
     dataTables = DATATABLES{DT};
     for subj = 1:length(dataTables)
-        EEG_table = dataTables{subj};
-        for r = 1:height(EEG_table)
-            for c = 1:width(EEG_table)
-                EEG = EEG_table{r,c}{1};
-                if ~isempty(EEG)
-                    evs = EEG.event;
-                    evs = evs(arrayfun(@(ev) ~sum(strcmp(ev.type, {'-1','15','14','12','13'})), evs));
-                    init_time = [evs.init_time];
-                    timeDiff = diff(init_time);
-                    sameTrial = [0, timeDiff <= timeBetweenEvents, 0];
-                    % ^ event i = same trial as event i-1
-                    trialBnd = diff(sameTrial); % 1=start, -1=end
-                    dur = init_time(trialBnd == -1) - init_time(trialBnd == 1);
-                    if isempty(dur)
-                        dur = 0;
-                    end
-                    maxTrialDur = max(maxTrialDur, max(dur));
+        EEG_table = dataTables{subj}{1,:};
+        for c = 1:length(EEG_table)
+            EEG = EEG_table{c};
+            if ~isempty(EEG)
+                evs = EEG.event;
+                evs = evs(arrayfun(@(ev) ~sum(strcmp(ev.type, {'-1','15','14','12','13'})), evs));
+                init_time = [evs.init_time];
+                timeDiff = diff(init_time);
+                sameTrial = [0, timeDiff <= timeBetweenEvents, 0];
+                % ^ event i = same trial as event i-1
+                trialBnd = diff(sameTrial); % 1=start, -1=end
+                dur = init_time(trialBnd == -1) - init_time(trialBnd == 1);
+                if isempty(dur)
+                    dur = 0;
                 end
-                clear EEG init_time timeDiff sameTrial trialBnd dur evs
+                maxTrialDur = max(maxTrialDur, max(dur));
             end
+            clear EEG init_time timeDiff sameTrial trialBnd dur evs
         end
         clear EEG_table
     end
@@ -129,42 +127,34 @@ for DT = 1:length(DATATABLES)
 end
 
 %% segment into trials 
-TRIALTABLES = cell(size(DATATABLES));
 for DT = 1:length(DATATABLES)
     dataTables = DATATABLES{DT};
     sf = scanfiles{DT};
-    trialTables = cell(size(dataTables));
-    for subj = 1:size(dataTables,1)
+    for subj = 1:length(dataTables)
         fn = sf{subj}
+        dataTable = dataTables{subj};
 
-        EEG_table = dataTables{subj,2};
+        EEG_table = dataTable{1,:};
         EEG_trial = EEG_table;
-        tY_table  = dataTables{subj,1};
+        tY_table  = dataTable{3,:};
         tY_trial  = tY_table;
 
-        for v = testVars
-            v = v{:};
+        for c = 1:length(EEG_table)
+            v = dataTable.Properties.VariableNames{c};
             disp(['segmenting ',v,' into trials'])
 
-            c = find(strcmp(v, EEG_table.Properties.VariableNames));
-
             for r = 1:height(EEG_table)
-                EEG = EEG_table{r,c}{1};
-                if ~isempty(EEG) & ~isempty(tY_table{r,c}{1})
+                EEG = EEG_table{c};
+                if ~isempty(EEG) & ~isempty(tY_table{c})
                     % setup variables
-                    tY = tY_table{r,c}{1}; Y = tY(:,:,2); t = tY(:,:,1);
+                    tY = tY_table{c}; Y = tY(:,:,2); t = tY(:,:,1);
                     evs = EEG.event;
                     % don't consider events of unwanted type
                     evs = evs(arrayfun(@(ev) ~sum(strcmp(ev.type, {'-1','15','14','12','13'})), evs));
 
                     % --------------------------------------------------------
 
-                    if strcmp(v, 'BaselineOpen')
-                        startEvs = evs(1); endEvs = evs(end);
-                        startEvs = [startEvs.latency]/EEG.srate;
-                        endEvs = [endEvs.latency]/EEG.srate;
-
-                    elseif strcmp(v, 'BaselineClosed')
+                    if sum(strcmp(v, {'BaselineBefore', 'BaselineAfter'}))
                         startEvs = evs(1); endEvs = evs(end);
                         startEvs = [startEvs.latency]/EEG.srate;
                         endEvs = [endEvs.latency]/EEG.srate;
@@ -327,13 +317,40 @@ for DT = 1:length(DATATABLES)
                 clear EEG tY init_time timeDiff sameTrial EEGs tYs evs startEvs
             end
         end
-        trialTables{subj,1} = tY_trial; trialTables{subj,2} = EEG_trial;
+        
+        dataTable{2,:} = EEG_trial; dataTable{4,:} = tY_trial;
+        dataTables{subj} = dataTable; 
         clear EEG_table tY_table EEG_trial tY_trial
     end
-    TRIALTABLES{DT} = trialTables;
-    clear dataTables sf trialTables
+    DATATABLES{DT} = dataTables;
+    clear dataTables dataTable sf
 end
 
+%% channel selection 
+allchan = [];
+for s = 1:length(scanfiles)
+    sf = scanfiles{s};
+    dataTables = DATATABLES{s};
+    for subj = 1:length(sf)
+        dataTable = dataTables{subj};
+        for c = 1:width(dataTable)
+            EEG = dataTable{1,c}{1};
+            allchan = [allchan, EEG.chanlocs];
+        end
+    end
+end
+
+figure; hold on;
+[~,idx] = unique({upper(allchan.labels)}); 
+allchan = allchan(idx);
+for chan = allchan
+    plot3(chan.X, chan.Y, chan.Z, '.', ...
+        'Color', chanColor(chan, allchan));
+    text(chan.X, chan.Y, chan.Z, chan.labels, ...
+        'Color', chanColor(chan, allchan));
+end
+[chansel, chanselName] = listdlg_selectWrapper({allchan.labels}, ...
+    'multiple', 'Select Channels:');
 
 %% plots 
 clr = {'b', 'r', 'k', 'm', 'c', 'g', 'y'};
@@ -343,17 +360,14 @@ spc = 10*maxNgrp;
 for s = 1:length(scanfiles)
     sf = scanfiles{s};
     dataTables = DATATABLES{s};
-    trialTables = TRIALTABLES{s};
 
     for subj = 1:length(sf)
         fn = sf{subj};
-        tY_table = trialTables{subj, 1};
+        dataTable = dataTables{subj};
 
-        for c = 1:width(tY_table)
-            for r = 1:height(tY_table)
-                tY_trial = tY_table{r, c}{1};
-                v = tY_table.Properties.VariableNames{c};
-                cond = tY_table.Properties.RowNames{r};
+        for c = 1:width(dataTable)
+                v = dataTable.Properties.VariableNames{c};
+                tY_trial = tY_table{4, c};
 
                 for trl = 1:length(tY_trial)
                     tY = tY_trial{trl};
@@ -362,7 +376,6 @@ for s = 1:length(scanfiles)
                     Y_erb = std(Y, 'omitnan'); % change to SE or 95% CI?
                 end
 
-            end
         end
     end
 end
