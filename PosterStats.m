@@ -339,6 +339,7 @@ for s = 1:length(scanfiles)
         end
     end
 end
+clear sf dataTable dataTables EEG
 
 figure; hold on;
 [~,idx] = unique({upper(allchan.labels)}); 
@@ -355,8 +356,9 @@ end
 %% plots 
 clr = {'b', 'r', 'k', 'm', 'c', 'g', 'y'};
 mkr = {'o', 's', 'p', 'h', 'x', 'd', '^', '>', 'v', '<', '+'};
-spc = 10*maxNgrp; 
+spc2 = 10; spc1 = 2;
 
+figure('Units', 'Normalized', 'Position', [0 0 1 1]); sgtitle(yname);
 for s = 1:length(scanfiles)
     sf = scanfiles{s};
     dataTables = DATATABLES{s};
@@ -367,13 +369,37 @@ for s = 1:length(scanfiles)
 
         for c = 1:width(dataTable)
                 v = dataTable.Properties.VariableNames{c};
-                tY_trial = tY_table{4, c};
+                tY_trial = dataTable{4, c};
+                EEG_all  = dataTable{1, c}{1};
 
+                Y_val = zeros(length(tY_trial), size(tY_trial{1},2));
+                Y_erb = Y_val;
                 for trl = 1:length(tY_trial)
                     tY = tY_trial{trl};
                     Y = tY(:,:,2);
-                    Y_val = mean(Y, 'omitnan');
-                    Y_erb = std(Y, 'omitnan'); % change to SE or 95% CI?
+                    Y_val(trl,:) = mean(Y, 'omitnan');
+                    Y_erb(trl,:) = std(Y, 'omitnan'); % change to SE or 95% CI?
+                end
+
+                xplt = length(scanfiles)*(maxNgrp+spc1)*spc2*(c-1) + ...
+                       length(scanfiles)*(maxNgrp+spc1)*(s-1) + ...
+                       subj;
+
+                for ch = 1:length(chanselName)
+                    subplot(length(chanselName),1,ch); grid on; hold on;
+
+                    chName = chanselName{ch};
+                    chIdx = strcmpi(chName, {EEG_all.chanlocs.labels});
+
+                    yplt = Y_val(:,chIdx); yplte = Y_erb(:,chIdx);
+
+                    ylabel(['Channel ',chName]);
+                    xticks(length(scanfiles)*(maxNgrp+spc1)*spc2*...
+                        ((1:width(dataTable))-.5));
+                    xticklabels(dataTable.Properties.VariableNames);
+
+                    errorbar(xplt*ones(size(yplt)), yplt, yplte, ...
+                        'Color',clr{s}, 'Marker',mkr{subj});
                 end
 
         end
