@@ -127,6 +127,7 @@ for DT = 1:length(DATATABLES)
 end
 
 %% segment into trials 
+maxNtrl = 0;
 for DT = 1:length(DATATABLES)
     dataTables = DATATABLES{DT};
     sf = scanfiles{DT};
@@ -309,8 +310,9 @@ for DT = 1:length(DATATABLES)
 
                         clear startT endT curEEG ti curY curT evIdx
                     end
-                    EEG_trial{r,c} = {EEGs};
-                    tY_trial{r,c} = {tYs};
+                    maxNtrl = max(maxNtrl, length(startEvs));
+                    EEG_trial{r,c} = EEGs;
+                    tY_trial{r,c} = tYs;
                     % --------------------------------------------------------
 
                 end
@@ -353,10 +355,10 @@ end
 [chansel, chanselName] = listdlg_selectWrapper({allchan.labels}, ...
     'multiple', 'Select Channels:');
 
-%% plots 
+%% plots
 clr = {'b', 'r', 'k', 'm', 'c', 'g', 'y'};
 mkr = {'o', 's', 'p', 'h', 'x', 'd', '^', '>', 'v', '<', '+'};
-spc2 = 10; spc1 = 2;
+spc2 = 2; spc1 = 2; spc3 = 3;
 
 figure('Units', 'Normalized', 'Position', [0 0 1 1]); sgtitle(yname);
 for s = 1:length(scanfiles)
@@ -364,48 +366,54 @@ for s = 1:length(scanfiles)
     dataTables = DATATABLES{s};
 
     for subj = 1:length(sf)
-        fn = sf{subj};
+        fn = sf{subj}; pname = fn(1:3);
         dataTable = dataTables{subj};
 
         for c = 1:width(dataTable)
-                v = dataTable.Properties.VariableNames{c};
-                tY_trial = dataTable{4, c}{1}{1}; % extra wrapping shouldn't be necessary?
-                EEG_all  = dataTable{1, c}{1};
+            v = dataTable.Properties.VariableNames{c};
+            tY_trial = dataTable{4, c}{1}; % extra wrapping shouldn't be necessary?
+            EEG_all  = dataTable{1, c}{1};
 
-                Y_val = zeros(length(tY_trial), size(tY_trial{1},2));
-                Y_erb = Y_val;
-                for trl = 1:length(tY_trial)
-                    tY = tY_trial{trl};
-                    Y = tY(:,:,2);
-                    Y_val(trl,:) = mean(Y, 'omitnan');
-                    Y_erb(trl,:) = std(Y, 'omitnan'); % change to SE or 95% CI?
-                end
+            Y_val = zeros(length(tY_trial), size(tY_trial{1},2));
+            Y_erb = Y_val;
+            for trl = 1:length(tY_trial)
+                tY = tY_trial{trl};
+                Y = tY(:,:,2);
+                Y_val(trl,:) = mean(Y, 'omitnan');
+                Y_erb(trl,:) = std(Y, 'omitnan'); % change to SE or 95% CI?
+            end
 
-                xplt = length(scanfiles)*(maxNgrp+spc1)*spc2*(c-1) + ...
-                       length(scanfiles)*(maxNgrp+spc1)*(s-1) + ...
-                       subj;
+            xplt = length(scanfiles)*(maxNgrp*(maxNtrl+spc3)+spc1)*spc2*(c-1) + ...
+                   (maxNgrp*(maxNtrl+spc3)+spc1)*(s-1) + ...
+                   (subj-1)*(maxNtrl+spc3);
 
-                for ch = 1:length(chanselName)
-                    subplot(length(chanselName),1,ch); grid on; hold on;
+            for ch = 1:length(chanselName)
+                subplot(length(chanselName),1,ch); grid on; hold on;
 
-                    chName = chanselName{ch};
-                    chIdx = strcmpi(chName, {EEG_all.chanlocs.labels});
+                chName = chanselName{ch};
+                chIdx = strcmpi(chName, {EEG_all.chanlocs.labels});
 
-                    yplt = Y_val(:,chIdx); yplte = Y_erb(:,chIdx);
+                yplt = Y_val(:,chIdx); yplte = Y_erb(:,chIdx);
 
-                    ylabel(['Channel ',chName]);
-                    xticks(length(scanfiles)*(maxNgrp+spc1)*spc2*...
-                        ((1:width(dataTable))-1) + maxNgrp+spc1);
-                    xticklabels(dataTable.Properties.VariableNames);
-                    xlim([-spc2, ...
-                        length(scanfiles)*(maxNgrp+spc1)*spc2*width(dataTable)]);
+                ylabel(chName);
+                xticks(length(scanfiles)*(maxNgrp*(maxNtrl+spc3)+spc1)*spc2*...
+                    ((1:width(dataTable))-1) + maxNgrp*(maxNtrl+spc3));
+                xticklabels(dataTable.Properties.VariableNames);
+                xlim([-spc2*(maxNgrp*(maxNtrl+spc3)+spc1), ...
+                    length(scanfiles)*(maxNgrp*(maxNtrl+spc3)+spc1)*spc2*width(dataTable)]);
 
-                    errorbar(xplt*ones(size(yplt)), yplt, yplte, ...
-                        'Color',clr{s}, 'Marker',mkr{subj});
-                end
+                errorbar(xplt+(1:length(yplt))-1, ...
+                    yplt, yplte, ...
+                    'Color',clr{s}, 'Marker',mkr{subj}, 'LineStyle','none', 'LineWidth',1);
+            end
 
         end
     end
+end
+
+for ch = 1:length(chanselName)
+    subplot(length(chanselName),1,ch);
+    ax = gca; ax.FontSize = 16;
 end
 
 %% helper functions 
