@@ -32,15 +32,6 @@ svloc = [postproDir,'/Poster Stats ',...
 
 [fcn, yname, ylims] = MeasurementSelector();
 
-% restructure: make 1 table with rows of Epoch_table, EEG_table, Spec_table
-% EpochSpec_table and cols of BaselineOpen_before, BaselineOpen_after,
-% pinprick, tempstim (the last 2 before & after combined; ignore CPM)
-% or make rows patients??
-
-[~,testVars] = listdlg_selectWrapper(...
-    {'TempStim', 'PinPrick', 'Pressure', 'BaselineOpen', 'BaselineClosed', 'BaselineIce'}, ...
-    'multiple', 'Specify Variable');
-
 %% calculations 
 timeBetweenEvents = 5; timeAfterLast = 3; % seconds 
 DATATABLES = cell(size(scanfiles));
@@ -58,38 +49,38 @@ for s = 1:length(scanfiles)
         tempTbl = table('RowNames',{'EEG_all','tY_all','tY_trial'});
 
         tempArr = EEG_table.BaselineOpen('before experiment');
-        tempTbl.BaselineBefore('EEG_all') = tempArr{1}; % need to wrap in {}?
+        tempTbl.BaselineBefore('EEG_all') = tempArr; 
         curSpec = EpochSpec_table.BaselineOpen('before experiment'); curSpec = curSpec{:};
         curEpoc = Epoch_table.BaselineOpen('before experiment');     curEpoc = curEpoc{:};
         [Y,t] = fcn(curSpec, curEpoc); 
-        tempTbl.BaselineBefore('tY_all') = cat(3,t,Y); % need to wrap in {}?
+        tempTbl.BaselineBefore('tY_all') = {cat(3,t,Y)}; 
 
         tempArr = EEG_table.BaselineOpen('after experiment');
-        tempTbl.BaselineAfter('EEG_all') = tempArr{1}; % need to wrap in {}?
+        tempTbl.BaselineAfter('EEG_all') = tempArr; 
         curSpec = EpochSpec_table.BaselineOpen('after experiment'); curSpec = curSpec{:};
         curEpoc = Epoch_table.BaselineOpen('after experiment');     curEpoc = curEpoc{:};
         [Y,t] = fcn(curSpec, curEpoc); 
-        tempTbl.BaselineAfter('tY_all') = cat(3,t,Y); % need to wrap in {}?
+        tempTbl.BaselineAfter('tY_all') = {cat(3,t,Y)}; 
 
         tempArr1 = EEG_table.TempStim('before experiment'); tempArr2 = EEG_table.TempStim('after experiment');
         tempArr = [tempArr1{:} tempArr2{:}];
-        tempTbl.TempStim('EEG_all') = tempArr; % need to wrap in {}?
+        tempTbl.TempStim('EEG_all') = {tempArr}; 
         tempArr1 = Epoch_table.TempStim('before experiment'); tempArr2 = Epoch_table.TempStim('after experiment');
-        curEpoc = [tempArr1{:} tempArr2{:}];
+        curEpoc = ArrCat(tempArr1{:}, tempArr2{:});
         tempArr1 = EpochSpec_table.TempStim('before experiment'); tempArr2 = EpochSpec_table.TempStim('after experiment');
-        curSpec = [tempArr1{:} tempArr2{:}];
+        curSpec = ArrCat(tempArr1{:}, tempArr2{:});
         [Y,t] = fcn(curSpec, curEpoc);
-        tempTbl.TempStim('tY_all') = cat(3,t,Y); % need to wrap in {}?
+        tempTbl.TempStim('tY_all') = {cat(3,t,Y)}; 
 
         tempArr1 = EEG_table.PinPrick('before experiment'); tempArr2 = EEG_table.PinPrick('after experiment');
         tempArr = [tempArr1{:} tempArr2{:}];
-        tempTbl.PinPrick('EEG_all') = tempArr; % need to wrap in {}?
+        tempTbl.PinPrick('EEG_all') = {tempArr}; 
         tempArr1 = Epoch_table.PinPrick('before experiment'); tempArr2 = Epoch_table.PinPrick('after experiment');
-        curEpoc = [tempArr1{:} tempArr2{:}];
+        curEpoc = ArrCat(tempArr1{:}, tempArr2{:});
         tempArr1 = EpochSpec_table.PinPrick('before experiment'); tempArr2 = EpochSpec_table.PinPrick('after experiment');
-        curSpec = [tempArr1{:} tempArr2{:}];
+        curSpec = ArrCat(tempArr1{:}, tempArr2{:});
         [Y,t] = fcn(curSpec, curEpoc);
-        tempTbl.PinPrick('tY_all') = cat(3,t,Y); % need to wrap in {}?
+        tempTbl.PinPrick('tY_all') = {cat(3,t,Y)}; 
 
         %{
         [tY_table, EEG_table] = ...
@@ -110,8 +101,8 @@ disp('determining trial durations')
 maxTrialDur = 0; % s
 for DT = 1:length(DATATABLES)
     dataTables = DATATABLES{DT};
-    for subj = 1:size(dataTables,1)
-        EEG_table = dataTables{subj,2};
+    for subj = 1:length(dataTables)
+        EEG_table = dataTables{subj};
         for r = 1:height(EEG_table)
             for c = 1:width(EEG_table)
                 EEG = EEG_table{r,c}{1};
@@ -377,6 +368,16 @@ for s = 1:length(scanfiles)
 end
 
 %% helper functions 
+
+function outArr = ArrCat(Arr1, Arr2)
+    if isempty(Arr1)
+        outArr = Arr2;
+    elseif isempty(Arr2)
+        outArr = Arr1;
+    else
+        outArr = [Arr1, Arr2];
+    end
+end
 
 function subtbl = makeSubtbl(tbl, vars)
     subtbl = tbl(:, ismember(tbl.Properties.VariableNames, vars));
