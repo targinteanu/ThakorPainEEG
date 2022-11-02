@@ -28,6 +28,7 @@ svloc = [postproDir,'/System ',...
 
 %% loading 
 RPs = cell(length(scanfiles), 2, 2); Ys = cell(length(scanfiles), 2, 3);
+ratings = cell(length(scanfiles), 2);
 for subj = 1:length(scanfiles)
     fn = scanfiles{subj}
     PtLd = load(fn);
@@ -69,7 +70,7 @@ for subj = 1:length(scanfiles)
     if ~isempty(tempEv)
         tempEv = tempEv(1).event;
         evStructs{1,1} = tempEv(strcmp({tempEv.type}, '11'));
-        evStructs{2,1} = eventBoundTimes(evStructs{1,1});
+        evStructs{2,1} = eventBoundTimes(evStructs{1,1}); % <--- change to split evs by specific trial
         evStructs{3,1} = objStructs{3,1}(1).srate;
     end
     tempEv = objStructs{3,2}; 
@@ -137,8 +138,11 @@ Pt_boundTimes_PPCPM = eventBoundTimes(Pt_event_PPCPM);
         T = evStructs{2,cond};
         T = T(T(:,1)>=0, :);
         RP = zeros(2, size(Y,2), size(T,1)); RP(2,:,:) = 1;
+        rtg = zeros(size(T,1), 3);
         Yin = nan(size(Y,1), size(Y,2), size(T,1)); Yout = Yin; Yir = Yin;
         for trl = 1:size(T,1)
+            trlEv = evStructs{1,cond}; % <-- change to get ev for specific trial 
+
             tsplit = T(trl,:);
             tt = [evStructs{1,cond}(tsplit).latency]/srate;
 
@@ -172,7 +176,8 @@ Pt_boundTimes_PPCPM = eventBoundTimes(Pt_event_PPCPM);
         end
         RPs{subj, cond, 1} = RP; RPs{subj, cond, 2} = chloc;
         Ys{subj, cond, 1} = Yin; Ys{subj, cond, 2} = Yout; Ys{subj, cond, 3} = Yir;
-        clear RP chloc T Y t tt tsplit ypred Yy Yh th ty h_idx y_idx hbnd srate
+        ratings{subj, cond} = rtg;
+        clear RP chloc T Y t tt tsplit ypred Yy Yh th ty h_idx y_idx hbnd srate rtg
         end
     end
     clear BL BLe

@@ -679,7 +679,15 @@ function plotEvents(EEG, ybound)
             initTime = ev.latency/srate;
             %initTime = ev.init_time;
             plot(initTime+[0,0], ybound, 'r', 'LineWidth',1.5);
-            text(initTime, ybound(lbl_sw+1), ev.type);
+            lbl = '';
+            if isfield(ev, 'rating')
+                if ~isempty(ev.rating)
+                    lbl = num2str(ev.rating);
+                end
+            elseif isfield(ev, 'type')
+                lbl = ev.type;
+            end
+            text(initTime, ybound(lbl_sw+1), lbl);
             lbl_sw = ~lbl_sw;
         end
     end
