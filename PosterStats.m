@@ -414,7 +414,17 @@ end
 %% plots
 maxplt = -inf(size(chansel)); minplt = inf(size(chansel));
 
-clr = {'b', 'r', 'k', 'm', 'c', 'g', 'y'};
+%clr = {'b', 'r', 'k', 'm', 'c', 'g', 'y'};
+clr = {[  1, 66,130]/255, ... navy blue 
+       [127,105,  3]/255, ... darkened yellow 
+       [ 17,172,228]/255, ... light blue
+       [254,209,  6]/255, ... yellow
+       [247,132, 34]/255, ... orange 
+       [ 66,174, 73]/255, ... green 
+       [213, 32, 39]/255, ... red
+       [141,153,193]/255, ... purple blue 
+       [244,154,192]/255, ... pink 
+       };
 mkr = {'o', '^', 's', 'p', 'h', 'd', '>', 'v', '<'};
 spc2 = 2; spc1 = 3; spc3 = 4;
 
@@ -562,7 +572,7 @@ for ch = 1:length(chansel)
     avg = brplt(:,:,ch,1)'; 
     b = bar(avg); hold on; grid on;
     for s = 1:length(b)
-        b(s).FaceColor = clr{s};
+        b(s).FaceColor = clr{s+2};
     end
     for s = 1:2
         errorbar((1:size(brplt,2))+(s-1.5)*2*spch, ...
