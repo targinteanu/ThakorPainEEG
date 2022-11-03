@@ -27,7 +27,7 @@ maxNgrp = maxNgrp + 1; % make room for combo subj
 cd(home); addpath(postproDir);
 svloc = [postproDir,'/Poster Stats ',...
     datestr(datetime, 'yyyy-mm-dd HH.MM.SS')];
-%mkdir(svloc); svloc = [svloc,'/'];
+mkdir(svloc); svloc = [svloc,'/'];
 
 %% select what to plot
 
@@ -423,7 +423,7 @@ brplt = zeros(size(comboSubj,2), ...
         length(chanselName), ...
         2);
 
-figure('Units', 'Normalized', 'Position', [0 0 1 1]); sgtitle(yname);
+fig = figure('Units', 'Normalized', 'Position', [0 0 1 1]); sgtitle(yname);
 for s = 1:length(scanfiles)
     sf = scanfiles{s};
     dataTables = DATATABLES{s};
@@ -514,6 +514,8 @@ for ch = 1:length(chanselName)
     ax = gca; ax.FontSize = 16;
 end
 
+saveas(fig, [svloc,yname,' AllTrialsPlot'], 'fig');
+
 %% hypothesis testing 
 % make more robust with more than 2 experimental groups / more baselines? 
 
@@ -552,7 +554,7 @@ for c = 1:size(pvals,2)
 end
 clear tYs tYs_s cumuchan cumuchansel
 
-figure('Units', 'Normalized', 'Position', [0 0 1 1]); sgtitle(yname);
+fig = figure('Units', 'Normalized', 'Position', [0 0 1 1]); sgtitle(yname);
 ytk = 3; alph = 0.001;
 spch = .15; 
 for ch = 1:length(chansel)
@@ -596,6 +598,8 @@ for ch = 1:length(chanselName)
     subplot(length(chanselName),1,ch);
     ax = gca; ax.FontSize = 16;
 end
+
+saveas(fig, [svloc,yname,' StatsBarPlot'], 'fig');
 
 %% helper functions 
 
