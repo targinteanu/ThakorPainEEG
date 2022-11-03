@@ -22,6 +22,7 @@ scanfiles = scanfiles(~[scanfiles.isdir]);
 scanfiles = {scanfilesH, scanfilesP};
 scanfileNames = {'Control', 'Patient'};
 maxNgrp = max( arrayfun(@(s) length(scanfiles{s}), 1:length(scanfiles)) );
+maxNgrp = maxNgrp + 1; % make room for combo subj
 
 cd(home); addpath(postproDir);
 svloc = [postproDir,'/Poster Stats ',...
@@ -355,9 +356,64 @@ end
 [chansel, chanselName] = listdlg_selectWrapper({allchan.labels}, ...
     'multiple', 'Select Channels:');
 
+%% combination "subjects" 
+comboSubj = cell(2, length(scanfiles));
+
+for s = 1:length(scanfiles)
+
+    somechan = true(size(allchan));
+    dataTables = DATATABLES{s};
+    for subj = 1:length(dataTables)
+        dataTable = dataTables{subj};
+        for c = 1:width(dataTable)
+            EEG_all = dataTable{1,c}{1};
+            for ch = 1:length(somechan)
+                somechan(ch) = somechan(ch) & sum( ...
+                    strcmpi(allchan(ch).labels, {EEG_all.chanlocs.labels}) );
+            end
+        end
+    end
+
+    somechan = allchan(somechan);
+    cumuTYs = {};
+    for subj = 1:length(dataTables)
+        dataTable = dataTables{subj};
+        cumuTYsubj = cell(1, width(dataTable));
+        for c = 1:width(dataTable)
+            EEG_all  = dataTable{1,c}{1};
+            tY_trial = dataTable{4,c}{1};
+            cumuTY = [];
+            for trl = 1:length(tY_trial)
+                tY = tY_trial{trl};
+                ord = zeros(1,length(somechan));
+                for ch = 1:length(somechan)
+                    ord(ch) = find( ...
+                        strcmpi(somechan(ch).labels, {EEG_all.chanlocs.labels}) );
+                end
+                cumuTY = cat(1, cumuTY, tY(:,ord,:));
+            end
+            cumuTYsubj{c} = cumuTY;
+        end
+        cumuTYs = [cumuTYs; cumuTYsubj];
+    end
+
+    cumuTYsubj = cell(1, size(cumuTYs,2));
+    for c = 1:size(cumuTYs,2)
+        cumuTY = [];
+        for subj = 1:size(cumuTYs,1)
+            cumuTY = cat(1, cumuTY, cumuTYs{subj, c});
+        end
+        cumuTYsubj{c} = cumuTY;
+    end
+
+    comboSubj{1, s} = cumuTYsubj; comboSubj{2, s} = somechan;
+    clear cumuTY cumuTYs cumuTYsubj somechan dataTable dataTables ...
+          EEG_all tY_trial tY ord 
+end
+
 %% plots
 clr = {'b', 'r', 'k', 'm', 'c', 'g', 'y'};
-mkr = {'o', 's', 'p', 'h', 'x', 'd', '^', '>', 'v', '<', '+'};
+mkr = {'o', '^', 's', 'p', 'h', 'd', '>', 'v', '<'};
 spc2 = 2; spc1 = 2; spc3 = 3;
 
 figure('Units', 'Normalized', 'Position', [0 0 1 1]); sgtitle(yname);
@@ -404,12 +460,42 @@ for s = 1:length(scanfiles)
 
                 errorbar(xplt+(1:length(yplt))-1, ...
                     yplt, yplte, ...
-                    'Color',clr{s}, 'Marker',mkr{subj}, 'LineStyle','none', 'LineWidth',1);
+                    'Color',clr{s}, 'Marker',mkr{subj}, 'LineStyle','none', 'LineWidth',.5);
             end
 
         end
     end
+
+    % cumulative "subject" 
+    cumuTYs = comboSubj{1, s}; cumuchan = comboSubj{2, s};
+    for c = 1:width(cumuTYs)
+        tY = cumuTYs{c}; 
+        Y = tY(:,:,2);
+        Y_val = mean(Y, 'omitnan');
+        Y_erb = std(Y, 'omitnan'); % change to SE or 95% CI?
+
+        xplt = length(scanfiles)*(maxNgrp*(maxNtrl+spc3)+spc1)*spc2*(c-1) + ...
+               (maxNgrp*(maxNtrl+spc3)+spc1)*(s-1) + ...
+               (subj)*(maxNtrl+spc3);
+
+        for ch = 1:length(chanselName)
+            subplot(length(chanselName),1,ch); 
+
+            chName = chanselName{ch};
+            chIdx = strcmpi(chName, {cumuchan.labels});
+
+            yplt = Y_val(:,chIdx); yplte = Y_erb(:,chIdx);
+
+            errorbar(xplt, yplt, yplte, ...
+                'Color',clr{s}, 'Marker','*', 'LineStyle','none', 'LineWidth',2);
+        end
+
+    end
+
 end
+clear sf dataTables dataTable v fn pname tY_trial EEG_all ...
+    Y_val Y_erb tY Y yplt yplte xplt chName chIdx ...
+    cumuchan cumuTYs
 
 for ch = 1:length(chanselName)
     subplot(length(chanselName),1,ch);
