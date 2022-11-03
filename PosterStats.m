@@ -412,9 +412,11 @@ for s = 1:length(scanfiles)
 end
 
 %% plots
+maxplt = -inf(size(chansel)); minplt = inf(size(chansel));
+
 clr = {'b', 'r', 'k', 'm', 'c', 'g', 'y'};
 mkr = {'o', '^', 's', 'p', 'h', 'd', '>', 'v', '<'};
-spc2 = 2; spc1 = 2; spc3 = 3;
+spc2 = 2; spc1 = 3; spc3 = 4;
 
 figure('Units', 'Normalized', 'Position', [0 0 1 1]); sgtitle(yname);
 for s = 1:length(scanfiles)
@@ -450,10 +452,13 @@ for s = 1:length(scanfiles)
                 chIdx = strcmpi(chName, {EEG_all.chanlocs.labels});
 
                 yplt = Y_val(:,chIdx); yplte = Y_erb(:,chIdx);
+                maxplt(ch) = max(maxplt(ch), max(yplt + yplte));
+                minplt(ch) = min(minplt(ch), min(yplt - yplte));
 
                 ylabel(chName);
-                xticks(length(scanfiles)*(maxNgrp*(maxNtrl+spc3)+spc1)*spc2*...
+                xtk = (length(scanfiles)*(maxNgrp*(maxNtrl+spc3)+spc1)*spc2*...
                     ((1:width(dataTable))-1) + maxNgrp*(maxNtrl+spc3));
+                xticks(xtk);
                 xticklabels(dataTable.Properties.VariableNames);
                 xlim([-spc2*(maxNgrp*(maxNtrl+spc3)+spc1), ...
                     length(scanfiles)*(maxNgrp*(maxNtrl+spc3)+spc1)*spc2*width(dataTable)]);
@@ -502,6 +507,71 @@ for ch = 1:length(chanselName)
     ax = gca; ax.FontSize = 16;
 end
 
+%% hypothesis testing 
+% make more robust with more than 2 experimental groups / more baselines? 
+pvals = zeros(3, ...
+        max( length(comboSubj{1,1}),length(comboSubj{1,2}) ), ...
+        length(chanselName) );
+tYs = comboSubj(1,:);
+for s = 1:length(tYs)
+    cumuchan = comboSubj{2,s};
+    cumuchansel = false(size(cumuchan));
+    for ch = 1:length(cumuchansel)
+        cumuchansel(ch) = sum(strcmpi(cumuchan(ch).labels, chanselName));
+    end
+    tYs_s = tYs{s};
+    for c = 1:length(tYs_s)
+        tYs_s{c} = tYs_s{c}(:,cumuchansel,:);
+    end
+    tYs{s} = tYs_s;
+end
+for c = 1:size(pvals,2)
+    for s = 1:2
+        tYs_s = tYs{s};
+        for ch = 1:size(pvals,3)
+            [~,pvals(s,c,ch)] = ...
+                ttest2( tYs_s{1}(:,ch,2), ...
+                        tYs_s{c}(:,ch,2), ...
+                        'Vartype', 'unequal' );
+        end
+    end
+    for ch = 1:size(pvals,3)
+        [~,pvals(3,c,ch)] = ...
+            ttest2( tYs{1}{c}(:,ch,2), ...
+                    tYs{2}{c}(:,ch,2), ...
+                    'Vartype', 'unequal' );
+    end
+end
+clear tYs tYs_s cumuchan cumuchansel
+
+ytk = 5; alph = 0.05;
+spch = (maxNgrp*(maxNtrl+spc3)+spc1) * .5;
+for ch = 1:length(chansel)
+    subplot(length(chanselName),1,ch);
+    spcv = (maxplt(ch) - minplt(ch))/ytk;
+    % below
+    curY = minplt(ch) - spcv;
+    for c = 1:size(pvals,2)
+        if pvals(3,c,ch) < alph
+            plotPval(pvals(3,c,ch), xtk(c)-spch, xtk(c)+spch, curY);
+            %curY = curY - spcv;
+        end
+    end
+    % above 
+    curY = maxplt(ch) + spcv;
+    for c = 1:size(pvals,2)
+        if pvals(1,c,ch) < alph
+            plotPval(pvals(1,c,ch), xtk(1)-spch, xtk(c)-spch, curY);
+            curY = curY + spcv;
+        end
+        if pvals(2,c,ch) < alph
+            plotPval(pvals(2,c,ch), xtk(1)+spch, xtk(c)+spch, curY);
+            curY = curY + spcv;
+        end
+    end
+    ylim([minplt(ch)-2*spcv, curY]);
+end
+
 %% helper functions 
 
 function outArr = ArrCat(Arr1, Arr2)
@@ -533,6 +603,12 @@ function rgb = chanColor(chloc, chlocs)
     chXYZ = chXYZ - min(allXYZ);
     allXYZ = allXYZ - min(allXYZ);
     rgb = chXYZ./max(allXYZ);
+end
+
+function plotPval(p, x1, x2, y)
+    x = mean([x1, x2]); xbar = abs(x2-x1)./2;
+    errorbar(x,y,0,0,xbar,xbar, 'k');
+    text(x,y, ['p = ',num2str(p,1)], 'FontSize',12, 'HorizontalAlignment','center', 'VerticalAlignment','bottom');
 end
 
 function [sel, listOut] = listdlg_selectWrapper(list, SelectionMode, PromptString)
