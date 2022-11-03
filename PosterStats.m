@@ -418,6 +418,11 @@ clr = {'b', 'r', 'k', 'm', 'c', 'g', 'y'};
 mkr = {'o', '^', 's', 'p', 'h', 'd', '>', 'v', '<'};
 spc2 = 2; spc1 = 3; spc3 = 4;
 
+brplt = zeros(size(comboSubj,2), ...
+        max( length(comboSubj{1,1}),length(comboSubj{1,2}) ), ...
+        length(chanselName), ...
+        2);
+
 figure('Units', 'Normalized', 'Position', [0 0 1 1]); sgtitle(yname);
 for s = 1:length(scanfiles)
     sf = scanfiles{s};
@@ -452,8 +457,6 @@ for s = 1:length(scanfiles)
                 chIdx = strcmpi(chName, {EEG_all.chanlocs.labels});
 
                 yplt = Y_val(:,chIdx); yplte = Y_erb(:,chIdx);
-                maxplt(ch) = max(maxplt(ch), max(yplt + yplte));
-                minplt(ch) = min(minplt(ch), min(yplt - yplte));
 
                 ylabel(chName);
                 xtk = (length(scanfiles)*(maxNgrp*(maxNtrl+spc3)+spc1)*spc2*...
@@ -490,15 +493,19 @@ for s = 1:length(scanfiles)
             chIdx = strcmpi(chName, {cumuchan.labels});
 
             yplt = Y_val(:,chIdx); yplte = Y_erb(:,chIdx);
+            maxplt(ch) = max(maxplt(ch), max(yplt + yplte));
+            minplt(ch) = min(minplt(ch), min(yplt - yplte));
 
             errorbar(xplt, yplt, yplte, ...
                 'Color',clr{s}, 'Marker','*', 'LineStyle','none', 'LineWidth',2);
+
+            brplt(s,c,ch,1) = yplt; brplt(s,c,ch,2) = yplte;
         end
 
     end
 
 end
-clear sf dataTables dataTable v fn pname tY_trial EEG_all ...
+clear sf dataTables v fn pname tY_trial EEG_all ...
     Y_val Y_erb tY Y yplt yplte xplt chName chIdx ...
     cumuchan cumuTYs
 
@@ -509,6 +516,7 @@ end
 
 %% hypothesis testing 
 % make more robust with more than 2 experimental groups / more baselines? 
+
 pvals = zeros(3, ...
         max( length(comboSubj{1,1}),length(comboSubj{1,2}) ), ...
         length(chanselName) );
@@ -544,16 +552,29 @@ for c = 1:size(pvals,2)
 end
 clear tYs tYs_s cumuchan cumuchansel
 
-ytk = 5; alph = 0.05;
-spch = (maxNgrp*(maxNtrl+spc3)+spc1) * .5;
+figure('Units', 'Normalized', 'Position', [0 0 1 1]); sgtitle(yname);
+ytk = 3; alph = 0.001;
+spch = .15; 
 for ch = 1:length(chansel)
     subplot(length(chanselName),1,ch);
+    avg = brplt(:,:,ch,1)'; 
+    b = bar(avg); hold on; grid on;
+    for s = 1:length(b)
+        b(s).FaceColor = clr{s};
+    end
+    for s = 1:2
+        errorbar((1:size(brplt,2))+(s-1.5)*2*spch, ...
+            brplt(s,:,ch,1), brplt(s,:,ch,2), ...
+            'Color','k', 'LineStyle','none', 'LineWidth',2);
+    end
+    xticklabels(dataTable.Properties.VariableNames);
+    ylabel(chanselName{ch});
     spcv = (maxplt(ch) - minplt(ch))/ytk;
     % below
     curY = minplt(ch) - spcv;
     for c = 1:size(pvals,2)
         if pvals(3,c,ch) < alph
-            plotPval(pvals(3,c,ch), xtk(c)-spch, xtk(c)+spch, curY);
+            plotPval(pvals(3,c,ch), c-spch, c+spch, curY);
             %curY = curY - spcv;
         end
     end
@@ -561,15 +582,19 @@ for ch = 1:length(chansel)
     curY = maxplt(ch) + spcv;
     for c = 1:size(pvals,2)
         if pvals(1,c,ch) < alph
-            plotPval(pvals(1,c,ch), xtk(1)-spch, xtk(c)-spch, curY);
+            plotPval(pvals(1,c,ch), 1-spch, c-spch, curY);
             curY = curY + spcv;
         end
         if pvals(2,c,ch) < alph
-            plotPval(pvals(2,c,ch), xtk(1)+spch, xtk(c)+spch, curY);
+            plotPval(pvals(2,c,ch), 1+spch, c+spch, curY);
             curY = curY + spcv;
         end
     end
     ylim([minplt(ch)-2*spcv, curY]);
+end
+for ch = 1:length(chanselName)
+    subplot(length(chanselName),1,ch);
+    ax = gca; ax.FontSize = 16;
 end
 
 %% helper functions 
@@ -607,8 +632,9 @@ end
 
 function plotPval(p, x1, x2, y)
     x = mean([x1, x2]); xbar = abs(x2-x1)./2;
-    errorbar(x,y,0,0,xbar,xbar, 'k');
-    text(x,y, ['p = ',num2str(p,1)], 'FontSize',12, 'HorizontalAlignment','center', 'VerticalAlignment','bottom');
+    errorbar(x,y,0,0,xbar,xbar, 'k', 'LineWidth',1);
+    text(x,y, ['p = ',num2str(p,1)], 'FontSize',8, 'FontWeight','bold', ...
+        'HorizontalAlignment','center', 'VerticalAlignment','bottom');
 end
 
 function [sel, listOut] = listdlg_selectWrapper(list, SelectionMode, PromptString)
