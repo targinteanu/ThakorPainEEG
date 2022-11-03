@@ -20,7 +20,7 @@ end
 scanfiles = scanfiles(sel);
 
     epochT = 4; % s
-    epoch_dt = .15; % s
+    epoch_dt = 4; % s
 
 cd(home); addpath(preproDir);
 svloc = [preproDir,'/Postprocessed ',...
@@ -39,7 +39,7 @@ for subj = 1:size(scanfiles,1)
     fn = scanfiles(subj,1).name
     load(fn);
 
-    EEG_table = makeSubtbl(EEG_table, {'PinPrick', 'BaselineOpen'});
+    %EEG_table = makeSubtbl(EEG_table, {'PinPrick', 'BaselineOpen'});
 
     % order by longest duration 
     %%{
