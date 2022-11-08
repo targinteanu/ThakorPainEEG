@@ -82,8 +82,8 @@ for subj = 1:length(scanfiles)
 end
 
 %% graph baselines of each subj 
-fig(2) = figure('Units', 'Normalized', 'Position', [0 0 1 1]); sgtitle(['Baseline ',yname]);
-fig(1) = figure('Units', 'Normalized', 'Position', [0 0 1 1]); sgtitle(['Baseline ',yname]);
+fig(2) = figure('Units', 'pixels', 'Position', [0 0 3500 2500]); sgtitle(['Baseline ',yname]);
+fig(1) = figure('Units', 'pixels', 'Position', [0 0 3500 2500]); sgtitle(['Baseline ',yname]);
 for subj = 1:size(BLs,1)
     fn = scanfiles{subj};
     %{
@@ -107,8 +107,9 @@ for subj = 1:size(BLs,1)
         end
     end
 
-    H = floor(sqrt(size(BLs,1)));
-    W = ceil(size(BLs,1)/H);
+    %H = floor(sqrt(size(BLs,1)));
+    %W = ceil(size(BLs,1)/H);
+    H = 5; W = 2;
 
     figure(fig(1));
     subplot(W,H,subj); 
