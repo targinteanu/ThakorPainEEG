@@ -462,8 +462,8 @@ for c = 1:size(statvals,2)
         for ch = 1:size(statvals,3)
             % test c vs baseline (?)
             [~,~,~,S] = ...
-                ttest2( tYs_s{1}(:,ch,2), ...
-                        tYs_s{c}(:,ch,2), ...
+                ttest2( tYs_s{c}(:,ch,2), ...
+                        tYs_s{1}(:,ch,2), ...
                         'Vartype', 'unequal' );
             S = S.tstat;
             maxstatval = max(maxstatval, S); minstatval = min(minstatval, S); 
@@ -483,25 +483,27 @@ for c = 1:size(statvals,2)
 end
 clear tYs tYs_s cumuchan cumuchansel
 
-fig = figure('Units', 'Normalized', 'Position', [0 0 1 1]); sgtitle(yname);
+fig = figure('Units', 'Normalized', 'Position', [0 0 1 .3]); 
+sgtitle([yname,' t statistic']);
 alph = 0.001;
-W = 2*size(statvals,2) + 1; 
+W1side = size(statvals,2)-2;
+W = 2*W1side + 1; 
 pltchan = comboSubj{2,1};
 varnames = DATATABLES{1}{1}.Properties.VariableNames;
 
-subplot(1,W, size(statvals,2)+1);
+subplot(1,W, W1side+1);
 title('Baseline H vs P');
 topoplot(statvals(3,1,:), pltchan, ...
     'maplimits', [minstatval, maxstatval]); colorbar;
 
-for c = 1:size(statvals,2)
-    subplot(1,W, size(statvals,2)+1+c);
-    title(['H ',varnames{c},' vs basline']);
+for c = 3:size(statvals,2)
+    subplot(1,W, W1side+c-1);
+    title(['P ',varnames{c},' vs Basline']);
     topoplot(statvals(2,c,:), pltchan, ...
         'maplimits', [minstatval, maxstatval]); colorbar;
 
-    subplot(1,W, c);
-    title(['P ',varnames{c},' vs basline']);
+    subplot(1,W, c-2);
+    title(['H ',varnames{c},' vs Basline']);
     topoplot(statvals(1,c,:), pltchan, ...
         'maplimits', [minstatval, maxstatval]); colorbar;
 end
