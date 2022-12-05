@@ -482,6 +482,8 @@ for c = 1:size(statvals,2)
     end
 end
 clear tYs tYs_s cumuchan cumuchansel
+maxstatval = max(abs(maxstatval), abs(minstatval));
+minstatval = -maxstatval;
 
 fig = figure('Units', 'Normalized', 'Position', [0 0 1 .3]); 
 sgtitle([yname,' t statistic']);
