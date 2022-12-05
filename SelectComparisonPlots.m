@@ -489,13 +489,18 @@ fig = figure('Units', 'Normalized', 'Position', [0 0 1 .3]);
 sgtitle([yname,' t statistic']);
 alph = 0.001;
 W1side = size(statvals,2)-2;
-W = 2*W1side + 1; 
+W = 2*W1side + 2; 
 pltchan = comboSubj{2,1};
 varnames = DATATABLES{1}{1}.Properties.VariableNames;
 
-subplot(1,W, W1side+1);
+subplot(1,W, 1);
 title('Baseline H vs P');
 topoplot(statvals(3,1,:), pltchan, ...
+    'maplimits', [minstatval, maxstatval]); colorbar;
+
+subplot(1,W, W);
+title('Ending H vs P');
+topoplot(statvals(3,2,:), pltchan, ...
     'maplimits', [minstatval, maxstatval]); colorbar;
 
 for c = 3:size(statvals,2)
@@ -504,7 +509,7 @@ for c = 3:size(statvals,2)
     topoplot(statvals(2,c,:), pltchan, ...
         'maplimits', [minstatval, maxstatval]); colorbar;
 
-    subplot(1,W, c-2);
+    subplot(1,W, c-1);
     title(['H ',varnames{c},' vs Basline']);
     topoplot(statvals(1,c,:), pltchan, ...
         'maplimits', [minstatval, maxstatval]); colorbar;
