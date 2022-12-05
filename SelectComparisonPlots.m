@@ -355,6 +355,7 @@ for chan = allchan
 end
 [chansel, chanselName] = listdlg_selectWrapper({allchan.labels}, ...
     'multiple', 'Select Channels:');
+allchan0 = allchan; allchan = allchan(chansel);
 
 %% combination "subjects" 
 comboSubj = cell(2, length(scanfiles));
