@@ -529,7 +529,7 @@ W = 2*length(plot_vs_baseline) + length(plot_P_vs_H);
 w = 1;
 for idx = 1:length(plot_P_vs_H)
     subplot(1,W, w);
-    pltname = plot_P_vs_H(idx);
+    pltname = plot_P_vs_H{idx};
     S = statsTable(1, strcmp(pltname, statsTable.Properties.VariableNames));
     title([pltname,' ',S.Properties.RowNames{1}]);
     S = S{1,1}{1};
@@ -538,10 +538,10 @@ for idx = 1:length(plot_P_vs_H)
     w = w + 1;
 end
 for idx = 1:length(plot_vs_baseline)
-    subplot(1,W, w);
-    pltname = plot_vs_baseline(idx);
+    pltname = plot_vs_baseline{idx};
     S = statsTable([2,3], strcmp(pltname, statsTable.Properties.VariableNames));
     for idx2 = 1:height(S)
+        subplot(1,W, w);
         title([pltname,' ',S.Properties.RowNames{idx2}]);
         SS = S{idx2,1}{1};
         topoplot([SS.tstat], [SS.chan], 'electrodes','labels', ...
