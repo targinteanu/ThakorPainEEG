@@ -383,7 +383,9 @@ end
 allchan0 = allchan; allchan = allchan(chansel);
 
 %% combination "subjects" 
+varnames = DATATABLES{1}{1}.Properties.VariableNames;
 comboSubj = cell(size(scanfiles));
+comboSubjTbl = table('VariableNames',varnames,'RowNames',scanfileNames);
 
 somechan = true(size(allchan));
 for s = 1:length(scanfiles)
@@ -420,24 +422,24 @@ for s = 1:length(scanfiles)
                     ord(ch) = find( ...
                         strcmpi(somechan(ch).labels, {EEG_all.chanlocs.labels}) );
                 end
-                cumuTY = cat(1, cumuTY, tY(:,ord,:));
+                cumuTY = cat(1, cumuTY, tY(:,ord,:)); % all trials concatenated 
             end
-            cumuTYsubj{c} = cumuTY;
+            cumuTYsubj{c} = cumuTY; % diff stimuli within one subj
         end
-        cumuTYs = [cumuTYs; cumuTYsubj];
+        cumuTYs = [cumuTYs; cumuTYsubj]; % #subjs x #stimtypes
     end
 
-    cumuTYsubj = cell(1, size(cumuTYs,2));
+    cumuTY_allsubjs = cell(1, size(cumuTYs,2)); % concat all subjs (collapse cumuTYs vertically)
     for c = 1:size(cumuTYs,2)
         cumuTY = [];
         for subj = 1:size(cumuTYs,1)
             cumuTY = cat(1, cumuTY, cumuTYs{subj, c});
         end
-        cumuTYsubj{c} = cumuTY;
+        cumuTY_allsubjs{c} = cumuTY;
     end
 
-    comboSubj{s} = cumuTYsubj; 
-    clear cumuTY cumuTYs cumuTYsubj dataTable dataTables ...
+    comboSubj{s} = cumuTY_allsubjs; 
+    clear cumuTY cumuTYs cumuTYsubj cumuTY_allsubjs dataTable dataTables ...
           EEG_all tY_trial tY ord 
 end
 % everything in comboSubj should be ordered according to somechan
