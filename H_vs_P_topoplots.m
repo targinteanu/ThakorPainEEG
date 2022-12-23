@@ -47,6 +47,7 @@ for s = 1:length(scanfiles)
 
         % run calculations on desired variables
         disp('calculating desired variables')
+        % construct data tables *************
         tempTbl = table('RowNames',{'EEG_all','EEG_trial','tY_all','tY_trial'});
 
         tempArr = EEG_table.BaselineOpen('before experiment');
@@ -400,6 +401,7 @@ for s = 1:length(scanfiles)
     end
 
     somechan = allchan(somechan);
+    % somechan = channels in allchan AND in all EEGs for this subject group
     cumuTYs = {};
     for subj = 1:length(dataTables)
         dataTable = dataTables{subj};
@@ -443,25 +445,31 @@ statvals = zeros(3, ...
         max( length(comboSubj{1,1}),length(comboSubj{1,2}) ), ...
         length(chanselName) );
 maxstatval = -Inf; minstatval = Inf;
-tYs = comboSubj(1,:);
-for s = 1:length(tYs)
+
+% include only selected channels 
+for s = 1:size(comboSubj,2)
+    tYs_s    = comboSubj{1,s};
     cumuchan = comboSubj{2,s};
     cumuchansel = false(size(cumuchan));
     for ch = 1:length(cumuchansel)
         cumuchansel(ch) = sum(strcmpi(cumuchan(ch).labels, chanselName));
     end
-    tYs_s = tYs{s};
+    cumuchan = cumuchan(cumuchansel);
     for c = 1:length(tYs_s)
         tYs_s{c} = tYs_s{c}(:,cumuchansel,:);
     end
-    tYs{s} = tYs_s;
+    comboSubj{1,s} = tYs_s;
+    comboSubj{2,s} = cumuchan;
 end
+clear tYs_s cumuchan cumuchansel
+
+% statistical testing 
 for c = 1:size(statvals,2)
     for s = 1:2
-        tYs_s = tYs{s};
+        tYs_s    = comboSubj{1,s};
         for ch = 1:size(statvals,3)
-            % test c vs baseline (?)
-            [~,~,~,S] = ...
+            % test c vs baseline 
+            [~,p,~,S] = ...
                 ttest2( tYs_s{c}(:,ch,2), ...
                         tYs_s{1}(:,ch,2), ...
                         'Vartype', 'unequal' );
@@ -471,7 +479,7 @@ for c = 1:size(statvals,2)
         end
     end
     for ch = 1:size(statvals,3)
-        % test patient c vs control c (?)
+        % test patient c vs control c 
         [~,~,~,S] = ...
             ttest2( tYs{1}{c}(:,ch,2), ...
                     tYs{2}{c}(:,ch,2), ...
@@ -481,7 +489,7 @@ for c = 1:size(statvals,2)
         statvals(3,c,ch) = S;
     end
 end
-clear tYs tYs_s cumuchan cumuchansel
+clear tYs_s cumuchan
 maxstatval = max(abs(maxstatval), abs(minstatval));
 minstatval = -maxstatval;
 
