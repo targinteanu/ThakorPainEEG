@@ -383,11 +383,10 @@ end
 allchan0 = allchan; allchan = allchan(chansel);
 
 %% combination "subjects" 
-comboSubj = cell(2, length(scanfiles));
+comboSubj = cell(size(scanfiles));
 
+somechan = true(size(allchan));
 for s = 1:length(scanfiles)
-
-    somechan = true(size(allchan));
     dataTables = DATATABLES{s};
     for subj = 1:length(dataTables)
         dataTable = dataTables{subj};
@@ -399,9 +398,13 @@ for s = 1:length(scanfiles)
             end
         end
     end
+end
+somechan = allchan(somechan);
+% somechan = only those selected AND in all EEGs of all subjects of all groups
 
-    somechan = allchan(somechan);
-    % somechan = channels in allchan AND in all EEGs for this subject group
+for s = 1:length(scanfiles)
+
+    dataTables = DATATABLES{s};
     cumuTYs = {};
     for subj = 1:length(dataTables)
         dataTable = dataTables{subj};
@@ -433,40 +436,25 @@ for s = 1:length(scanfiles)
         cumuTYsubj{c} = cumuTY;
     end
 
-    comboSubj{1, s} = cumuTYsubj; comboSubj{2, s} = somechan;
-    clear cumuTY cumuTYs cumuTYsubj somechan dataTable dataTables ...
+    comboSubj{s} = cumuTYsubj; 
+    clear cumuTY cumuTYs cumuTYsubj dataTable dataTables ...
           EEG_all tY_trial tY ord 
 end
+% everything in comboSubj should be ordered according to somechan
 
 %% comparison 
 % make more robust with more than 2 experimental groups / more baselines? 
 
 statvals = zeros(3, ...
-        max( length(comboSubj{1,1}),length(comboSubj{1,2}) ), ...
-        length(chanselName) );
+        max( length(comboSubj{1}),length(comboSubj{2}) ), ...
+        length(somechan) );
+p_alpha = 0.01; % uncertainty for stat significance 
 maxstatval = -Inf; minstatval = Inf;
-
-% include only selected channels 
-for s = 1:size(comboSubj,2)
-    tYs_s    = comboSubj{1,s};
-    cumuchan = comboSubj{2,s};
-    cumuchansel = false(size(cumuchan));
-    for ch = 1:length(cumuchansel)
-        cumuchansel(ch) = sum(strcmpi(cumuchan(ch).labels, chanselName));
-    end
-    cumuchan = cumuchan(cumuchansel);
-    for c = 1:length(tYs_s)
-        tYs_s{c} = tYs_s{c}(:,cumuchansel,:);
-    end
-    comboSubj{1,s} = tYs_s;
-    comboSubj{2,s} = cumuchan;
-end
-clear tYs_s cumuchan cumuchansel
 
 % statistical testing 
 for c = 1:size(statvals,2)
     for s = 1:2
-        tYs_s    = comboSubj{1,s};
+        tYs_s    = comboSubj{s};
         for ch = 1:size(statvals,3)
             % test c vs baseline 
             [~,p,~,S] = ...
@@ -480,7 +468,7 @@ for c = 1:size(statvals,2)
     end
     for ch = 1:size(statvals,3)
         % test patient c vs control c 
-        [~,~,~,S] = ...
+        [~,p,~,S] = ...
             ttest2( tYs{1}{c}(:,ch,2), ...
                     tYs{2}{c}(:,ch,2), ...
                     'Vartype', 'unequal' );
@@ -489,16 +477,17 @@ for c = 1:size(statvals,2)
         statvals(3,c,ch) = S;
     end
 end
-clear tYs_s cumuchan
+clear tYs_s
 maxstatval = max(abs(maxstatval), abs(minstatval));
 minstatval = -maxstatval;
 
+%% plot comparison 
+
 fig = figure('Units', 'Normalized', 'Position', [0 0 1 .3]); 
 sgtitle([yname,' t statistic']);
-alph = 0.001;
 W1side = size(statvals,2)-2;
 W = 2*W1side + 2; 
-pltchan = comboSubj{2,1};
+pltchan = somechan;
 varnames = DATATABLES{1}{1}.Properties.VariableNames;
 
 subplot(1,W, 1);
