@@ -385,7 +385,9 @@ allchan0 = allchan; allchan = allchan(chansel);
 %% combination "subjects" 
 varnames = DATATABLES{1}{1}.Properties.VariableNames;
 comboSubj = cell(size(scanfiles));
-comboSubjTbl = table('VariableNames',varnames,'RowNames',scanfileNames);
+comboSubjTbl = table('size',[length(scanfileNames),length(varnames)], ...
+                     'VariableTypes',repmat("cell",size(varnames)), ...
+                     'VariableNames',varnames,'RowNames',scanfileNames);
 
 somechan = true(size(allchan));
 for s = 1:length(scanfiles)
@@ -436,6 +438,7 @@ for s = 1:length(scanfiles)
             cumuTY = cat(1, cumuTY, cumuTYs{subj, c});
         end
         cumuTY_allsubjs{c} = cumuTY;
+        comboSubjTbl{s,c} = {cumuTY};
     end
 
     comboSubj{s} = cumuTY_allsubjs; 
@@ -451,7 +454,8 @@ varnames = DATATABLES{1}{1}.Properties.VariableNames;
 statvals = zeros(3, ...
         max( length(comboSubj{1}),length(comboSubj{2}) ), ...
         length(somechan) );
-statsTable = table('RowNames',{'P_vs_H','H_vs_baseline','P_vs_baseline'}, ...
+statsTable = table('size',[3,length(varnames)], 'VariableTypes',repmat("cell",size(varnames)), ...
+                   'RowNames',{'P_vs_H','H_vs_baseline','P_vs_baseline'}, ...
                    'VariableNames',varnames);
 
 p_alpha = 0.01; % uncertainty for stat significance 
