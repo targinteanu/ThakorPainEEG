@@ -384,7 +384,6 @@ allchan0 = allchan; allchan = allchan(chansel);
 
 %% combination "subjects" 
 varnames = DATATABLES{1}{1}.Properties.VariableNames;
-comboSubj = cell(size(scanfiles));
 comboSubjTbl = table('size',[length(scanfileNames),length(varnames)], ...
                      'VariableTypes',repmat("cell",size(varnames)), ...
                      'VariableNames',varnames,'RowNames',scanfileNames);
@@ -431,18 +430,16 @@ for s = 1:length(scanfiles)
         cumuTYs = [cumuTYs; cumuTYsubj]; % #subjs x #stimtypes
     end
 
-    cumuTY_allsubjs = cell(1, size(cumuTYs,2)); % concat all subjs (collapse cumuTYs vertically)
+    % concat all subjs (collapse cumuTYs vertically)
     for c = 1:size(cumuTYs,2)
         cumuTY = [];
         for subj = 1:size(cumuTYs,1)
             cumuTY = cat(1, cumuTY, cumuTYs{subj, c});
         end
-        cumuTY_allsubjs{c} = cumuTY;
         comboSubjTbl{s,c} = {cumuTY};
     end
 
-    comboSubj{s} = cumuTY_allsubjs; 
-    clear cumuTY cumuTYs cumuTYsubj cumuTY_allsubjs dataTable dataTables ...
+    clear cumuTY cumuTYs cumuTYsubj dataTable dataTables ...
           EEG_all tY_trial tY ord 
 end
 % everything in comboSubj should be ordered according to somechan
@@ -451,78 +448,110 @@ end
 % make more robust with more than 2 experimental groups / more baselines? 
 varnames = DATATABLES{1}{1}.Properties.VariableNames;
 
-statvals = zeros(3, ...
-        max( length(comboSubj{1}),length(comboSubj{2}) ), ...
-        length(somechan) );
-statsTable = table('size',[3,length(varnames)], 'VariableTypes',repmat("cell",size(varnames)), ...
-                   'RowNames',{'P_vs_H','H_vs_baseline','P_vs_baseline'}, ...
+statsTable = table('size',[3,length(varnames)], ...
+                   'VariableTypes',repmat("cell",size(varnames)), ...
+                   'RowNames',{'P vs H','H vs baseline','P vs baseline'}, ...
                    'VariableNames',varnames);
 
 p_alpha = 0.01; % uncertainty for stat significance 
 maxstatval = -Inf; minstatval = Inf;
 
 % statistical testing 
-for c = 1:size(statvals,2)
-    for s = 1:2
-        tYs_s    = comboSubj{s};
-        for ch = 1:size(statvals,3)
-            % test c vs baseline 
-            [~,p,~,S] = ...
-                ttest2( tYs_s{c}(:,ch,2), ...
-                        tYs_s{1}(:,ch,2), ...
-                        'Vartype', 'unequal' );
-            S = S.tstat;
-            maxstatval = max(maxstatval, S); minstatval = min(minstatval, S); 
-            statvals(s,c,ch) = S;
-        end
-    end
-    for ch = 1:size(statvals,3)
-        % test patient c vs control c 
+for c = 1:width(comboSubjTbl)
+
+    s = repmat(struct('chan',somechan(1), 'tstat',0, 'pval',1), ...
+               [length(somechan),height(statsTable)]);
+    for ch = 1:length(somechan)
+        % P vs H
         [~,p,~,S] = ...
-            ttest2( comboSubj{1}{c}(:,ch,2), ...
-                    comboSubj{2}{c}(:,ch,2), ...
+            ttest2( comboSubjTbl{2,c}{1}(:,ch,2), ...
+                    comboSubjTbl{1,c}{1}(:,ch,2), ...
                     'Vartype', 'unequal' );
-        S = S.tstat;
-        maxstatval = max(maxstatval, S); minstatval = min(minstatval, S);
-        statvals(3,c,ch) = S;
+        s(ch,1).chan  = somechan(ch);
+        s(ch,1).tstat = S.tstat;
+        s(ch,1).pval  = p;
+
+        % H vs baseline 
+        [~,p,~,S] = ...
+            ttest2( comboSubjTbl{1,c}{1}(:,ch,2), ...
+                    comboSubjTbl{1,1}{1}(:,ch,2), ...
+                    'Vartype', 'unequal' );
+        s(ch,2).chan  = somechan(ch);
+        s(ch,2).tstat = S.tstat;
+        s(ch,2).pval  = p;
+
+        % P vs baseline 
+        [~,p,~,S] = ...
+            ttest2( comboSubjTbl{2,c}{1}(:,ch,2), ...
+                    comboSubjTbl{2,1}{1}(:,ch,2), ...
+                    'Vartype', 'unequal' );
+        s(ch,3).chan  = somechan(ch);
+        s(ch,3).tstat = S.tstat;
+        s(ch,3).pval  = p;
+
+        clear p S
+    end
+
+    statsTable{1,c} = {s(:,1)};
+    statsTable{2,c} = {s(:,2)};
+    statsTable{3,c} = {s(:,3)};
+    clear s
+end
+
+% for plotting: find bounds and significance 
+for r = 1:height(statsTable)
+    for c = 1:width(statsTable)
+        S = statsTable{r,c}{1};
+        for ch = 1:length(S)
+            if S(ch).pval < p_alpha
+                S(ch).chan.labels = '*';
+            else
+                S(ch).chan.labels = '.';
+            end
+        end
+        statsTable{r,c} = {S};
+        S = [S.tstat];
+        maxstatval = max(maxstatval, max(S)); minstatval = min(minstatval, min(S));
     end
 end
-clear tYs_s
+clear S
 maxstatval = max(abs(maxstatval), abs(minstatval));
 minstatval = -maxstatval;
 
 %% plot comparison 
+plot_vs_baseline = {'TempStim', 'PinPrick'};
+plot_P_vs_H      = {'BaselineBefore', 'BaselineAfter'};
 
 fig = figure('Units', 'Normalized', 'Position', [0 0 1 .3]); 
-sgtitle([yname,' t statistic']);
-W1side = size(statvals,2)-2;
-W = 2*W1side + 2; 
-pltchan = somechan;
-varnames = DATATABLES{1}{1}.Properties.VariableNames;
+sgtitle([yname,' t statistic; *: p < ',num2str(p_alpha)]);
+W = 2*length(plot_vs_baseline) + length(plot_P_vs_H);
 
-subplot(1,W, 1);
-title('Baseline H vs P');
-topoplot(statvals(3,1,:), pltchan, ...
-    'maplimits', [minstatval, maxstatval]); colorbar;
-
-subplot(1,W, W);
-title('Ending H vs P');
-topoplot(statvals(3,2,:), pltchan, ...
-    'maplimits', [minstatval, maxstatval]); colorbar;
-
-for c = 3:size(statvals,2)
-    subplot(1,W, W1side+c-1);
-    title(['P ',varnames{c},' vs Basline']);
-    topoplot(statvals(2,c,:), pltchan, ...
+w = 1;
+for idx = 1:length(plot_P_vs_H)
+    subplot(1,W, w);
+    pltname = plot_P_vs_H(idx);
+    S = statsTable(1, strcmp(pltname, statsTable.Properties.VariableNames));
+    title([pltname,' ',S.Properties.RowNames{1}]);
+    S = S{1,1}{1};
+    topoplot([S.tstat], [S.chan], 'electrodes','labels', ...
         'maplimits', [minstatval, maxstatval]); colorbar;
-
-    subplot(1,W, c-1);
-    title(['H ',varnames{c},' vs Basline']);
-    topoplot(statvals(1,c,:), pltchan, ...
-        'maplimits', [minstatval, maxstatval]); colorbar;
+    w = w + 1;
 end
+for idx = 1:length(plot_vs_baseline)
+    subplot(1,W, w);
+    pltname = plot_vs_baseline(idx);
+    S = statsTable([2,3], strcmp(pltname, statsTable.Properties.VariableNames));
+    for idx2 = 1:height(S)
+        title([pltname,' ',S.Properties.RowNames{idx2}]);
+        SS = S{idx2,1}{1};
+        topoplot([SS.tstat], [SS.chan], 'electrodes','labels', ...
+            'maplimits', [minstatval, maxstatval]); colorbar;
+        w = w + 1;
+    end
+end
+clear S SS
 
-saveas(fig, [svloc,yname,' StatsBarPlot'], 'fig');
+%saveas(fig, [svloc,yname,' StatsBarPlot'], 'fig');
 
 %% helper functions 
 
