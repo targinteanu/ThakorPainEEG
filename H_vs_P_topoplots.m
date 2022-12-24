@@ -502,6 +502,7 @@ end
 for r = 1:height(statsTable)
     for c = 1:width(statsTable)
         S = statsTable{r,c}{1};
+        %{
         for ch = 1:length(S)
             if S(ch).pval < p_alpha
                 S(ch).chan.labels = '*';
@@ -509,6 +510,7 @@ for r = 1:height(statsTable)
                 S(ch).chan.labels = '.';
             end
         end
+        %}
         statsTable{r,c} = {S};
         S = [S.tstat];
         maxstatval = max(maxstatval, max(S)); minstatval = min(minstatval, min(S));
@@ -520,10 +522,10 @@ minstatval = -maxstatval;
 
 %% plot comparison 
 plot_vs_baseline = {'TempStim', 'PinPrick'};
-plot_P_vs_H      = {'BaselineBefore', 'BaselineAfter'};
+plot_P_vs_H      = {'BaselineBefore'};
 
 fig = figure('Units', 'Normalized', 'Position', [0 0 1 .3]); 
-sgtitle([yname,' t statistic; *: p < ',num2str(p_alpha)]);
+sgtitle([yname,' t statistic; * p < ',num2str(p_alpha)]);
 W = 2*length(plot_vs_baseline) + length(plot_P_vs_H);
 
 w = 1;
@@ -533,7 +535,10 @@ for idx = 1:length(plot_P_vs_H)
     S = statsTable(1, strcmp(pltname, statsTable.Properties.VariableNames));
     title([pltname,' ',S.Properties.RowNames{1}]);
     S = S{1,1}{1};
-    topoplot([S.tstat], [S.chan], 'electrodes','labels', ...
+    topoplot([S.tstat], [S.chan], ...
+        'emarker2', {find([S.pval]<p_alpha), '*', 'k'}, ...
+        ...'pmask', [S.pval]<p_alpha, ...
+        ...'numcontour',[p_alpha p_alpha], 'contourvals',[S.pval], ...
         'maplimits', [minstatval, maxstatval]); colorbar;
     w = w + 1;
 end
@@ -544,14 +549,15 @@ for idx = 1:length(plot_vs_baseline)
         subplot(1,W, w);
         title([pltname,' ',S.Properties.RowNames{idx2}]);
         SS = S{idx2,1}{1};
-        topoplot([SS.tstat], [SS.chan], 'electrodes','labels', ...
+        topoplot([SS.tstat], [SS.chan], ...
+            'emarker2', {find([SS.pval]<p_alpha), '*', 'k'}, ...
             'maplimits', [minstatval, maxstatval]); colorbar;
         w = w + 1;
     end
 end
 clear S SS
 
-%saveas(fig, [svloc,yname,' StatsBarPlot'], 'fig');
+saveas(fig, [svloc,yname,' StatsBarPlot'], 'fig');
 
 %% helper functions 
 
