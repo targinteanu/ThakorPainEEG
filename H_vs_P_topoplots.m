@@ -331,7 +331,7 @@ for DT = 1:length(DATATABLES)
 end
 
 %% channel selection 
-
+%%{
 % get all channel names of all EEGs 
 allchan = [];
 for s = 1:length(scanfiles)
@@ -381,7 +381,7 @@ end
 [chansel, chanselName] = listdlg_selectWrapper({allchan.labels}, ...
     'multiple', 'Select Channels:');
 allchan0 = allchan; allchan = allchan(chansel);
-
+%}
 %% combination "subjects" 
 varnames = DATATABLES{1}{1}.Properties.VariableNames;
 comboSubjTbl = table('size',[length(scanfileNames),length(varnames)], ...
