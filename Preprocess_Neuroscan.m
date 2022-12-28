@@ -41,7 +41,7 @@ for subj = 1:size(datafolders,1)
     disp(datafolders(subj,1).name)
     cd(datafolders(subj,1).name);
     clearvars infolder
-    infolder = dir; infolder = subfoldersof(infolder);
+    infolder = dir; %infolder = subfoldersof(infolder);
     for d1 = 1:size(infolder,1)        
         disp(infolder(d1,1).name)
         cd(infolder(d1,1).name);
