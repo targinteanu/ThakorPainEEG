@@ -25,7 +25,7 @@ maxNgrp = max( arrayfun(@(s) length(scanfiles{s}), 1:length(scanfiles)) );
 maxNgrp = maxNgrp + 1; % make room for combo subj
 
 cd(home); addpath(postproDir);
-svloc = [postproDir,'/Comparison Topoplots ',...
+svloc = [postproDir,'/Comparison Spectra ',...
     datestr(datetime, 'yyyy-mm-dd HH.MM.SS')];
 mkdir(svloc); svloc = [svloc,'/'];
 
@@ -477,7 +477,35 @@ for s = 1:length(scanfiles)
 end
 
 %% plotting 
+fig = figure('Units', 'Normalized', 'Position', [0 0 1 1]); 
+W = width(comboSubjTbl); H = height(comboSubjTbl); idx = 1;
+for c = 1:W
+    for r = 1:H
+        typeStim = comboSubjTbl.Properties.VariableNames{c};
+        typePat = comboSubjTbl.Properties.VariableNames{r};
+        data = comboSubjTbl{r,c}{:};
 
+        data_val = mean(data.powerSpectrum, 3);      % y-value = mean
+        data_erb =  std(data.powerSpectrum, [], 3);  % err bar = 1SD
+        data_hor = data.frequency1side;              % x-value = freq
+
+        ax(idx) = subplot(H,W,idx);
+        title([typePat,' ',typeStim]);
+        hold on; grid on; 
+        for chidx = 1:data.nbchan
+            colr = chanColor(data.chanlocs(chidx), data.chanlocs);
+            errorbar(data_hor, data_val(chidx,:), data_erb(chidx,:), 'Color', colr);
+        end
+        ylabel('Power (\muV^2 s^2)'); 
+        xlabel('Frequency (Hz)');
+
+        clear data data_val data_erb data_hor
+        idx = idx + 1;
+    end
+end
+linkaxes(ax);
+
+%saveas(fig, [svloc,yname,' Spectra'], 'fig');
 
 %% helper functions 
 
