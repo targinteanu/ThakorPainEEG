@@ -371,13 +371,9 @@ end
 allchan0 = allchan; allchan = allchan(chansel);
 %}
 
-%% combination "subjects" 
 
-% reorganize channels for concatenation and ignore unselected 
+%% reorganize channels for concatenation and ignore unselected 
 varnames = DATATABLES{1}{1}.Properties.VariableNames;
-comboSubjTbl = table('size',[length(scanfileNames),length(varnames)], ...
-                     'VariableTypes',repmat("struct",size(varnames)), ...
-                     'VariableNames',varnames,'RowNames',scanfileNames);
 
 somechan = true(size(allchan));
 for s = 1:length(scanfiles)
@@ -442,7 +438,11 @@ for s = 1:length(scanfiles)
 end
 w_all = sort(unique(w_all));
 
-% collapse subjects for each subject group 
+%% collapse subjects for each subject group 
+comboSubjTbl = table('size',[length(scanfileNames),length(varnames)], ...
+                     'VariableTypes',repmat("cell",size(varnames)), ...
+                     'VariableNames',varnames,'RowNames',scanfileNames);
+
 for s = 1:length(scanfiles)
     dataTables = DATATABLES{s};
 
@@ -470,7 +470,7 @@ for s = 1:length(scanfiles)
         comboSpecs.powerSpectrum = P_all;
         comboSpecs.chanlocs = somechan;
         comboSpecs.nbchan = length(somechan);
-        comboSubjTbl{s,c} = comboSpecs;
+        comboSubjTbl{s,c} = {comboSpecs};
 
     end
     clear dataTables
