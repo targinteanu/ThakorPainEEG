@@ -374,10 +374,11 @@ allchan0 = allchan; allchan = allchan(chansel);
 
 %% reorganize channels for concatenation and ignore unselected 
 varnames = DATATABLES{1}{1}.Properties.VariableNames;
+DATATABLES2 = DATATABLES;
 
 somechan = true(size(allchan));
 for s = 1:length(scanfiles)
-    dataTables = DATATABLES{s};
+    dataTables = DATATABLES2{s};
     for subj = 1:length(dataTables)
         dataTable = dataTables{subj};
         for c = 1:width(dataTable)
@@ -394,7 +395,7 @@ somechan = allchan(somechan);
 
 w_all = [];
 for s = 1:length(scanfiles)
-    dataTables = DATATABLES{s};
+    dataTables = DATATABLES2{s};
     for subj = 1:length(dataTables)
         dataTable = dataTables{subj};
         for c = 1:width(dataTable)
@@ -433,7 +434,7 @@ for s = 1:length(scanfiles)
         dataTables{subj} = dataTable; 
         clear dataTable
     end
-    DATATABLES{s} = dataTables; 
+    DATATABLES2{s} = dataTables; 
     clear dataTables
 end
 w_all = sort(unique(w_all));
@@ -444,7 +445,7 @@ comboSubjTbl = table('size',[length(scanfileNames),length(varnames)], ...
                      'VariableNames',varnames,'RowNames',scanfileNames);
 
 for s = 1:length(scanfiles)
-    dataTables = DATATABLES{s};
+    dataTables = DATATABLES2{s};
 
     for c = 1:width(varnames)
         P_all = [];
@@ -477,19 +478,20 @@ for s = 1:length(scanfiles)
 end
 
 %% plotting 
+comboSubjTblSel = comboSubjTbl(:,[1,3,4]);
 fig = figure('Units', 'Normalized', 'Position', [0 0 1 1]); 
-W = width(comboSubjTbl); H = height(comboSubjTbl); idx = 1;
+W = width(comboSubjTblSel); H = height(comboSubjTblSel); idx = 1;
 for c = 1:W
     for r = 1:H
-        typeStim = comboSubjTbl.Properties.VariableNames{c};
-        typePat = comboSubjTbl.Properties.VariableNames{r};
-        data = comboSubjTbl{r,c}{:};
+        typeStim = comboSubjTblSel.Properties.VariableNames{c};
+        typePat = comboSubjTblSel.Properties.RowNames{r};
+        data = comboSubjTblSel{r,c}{:};
 
         data_val = mean(data.powerSpectrum, 3);      % y-value = mean
         data_erb =  std(data.powerSpectrum, [], 3);  % err bar = 1SD
         data_hor = data.frequency1side;              % x-value = freq
 
-        ax(idx) = subplot(H,W,idx);
+        ax(idx) = subplot(W,H,idx);
         title([typePat,' ',typeStim]);
         hold on; grid on; 
         for chidx = 1:data.nbchan
@@ -504,6 +506,8 @@ for c = 1:W
     end
 end
 linkaxes(ax);
+xlim([0 80]); 
+legend({somechan.labels});
 
 %saveas(fig, [svloc,yname,' Spectra'], 'fig');
 
