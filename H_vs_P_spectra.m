@@ -478,7 +478,8 @@ for s = 1:length(scanfiles)
 end
 
 %% plotting 
-comboSubjTblSel = comboSubjTbl(:,[1,3,4]);
+%comboSubjTblSel = comboSubjTbl(:,[1,3,4]);
+comboSubjTblSel = comboSubjTbl(:,[1,3,4,2]);
 fig = figure('Units', 'Normalized', 'Position', [0 0 1 1]); 
 W = width(comboSubjTblSel); H = height(comboSubjTblSel); idx = 1;
 for c = 1:W
@@ -496,10 +497,11 @@ for c = 1:W
         hold on; grid on; 
         for chidx = 1:data.nbchan
             colr = chanColor(data.chanlocs(chidx), data.chanlocs);
-            errorbar(data_hor, data_val(chidx,:), data_erb(chidx,:), 'Color', colr);
+            errorbar(data_hor, data_val(chidx,:), zeros(size(data_hor)), data_erb(chidx,:), 'Color', colr);
         end
         ylabel('Power (\muV^2 s^2)'); 
         xlabel('Frequency (Hz)');
+        set(gca, 'YScale', 'log');
 
         clear data data_val data_erb data_hor
         idx = idx + 1;
