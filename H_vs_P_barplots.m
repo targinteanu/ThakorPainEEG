@@ -419,6 +419,7 @@ for s = 1:length(scanfiles)
 end
 
 %% plots
+%{
 maxplt = -inf(size(chansel)); minplt = inf(size(chansel));
 
 %clr = {'b', 'r', 'k', 'm', 'c', 'g', 'y'};
@@ -533,16 +534,30 @@ end
 
 saveas(fig, [svloc,yname,' AllTrialsPlot'], 'fig');
 
+%}
 %% export baseline stat as mat file 
+pnames = scanfiles; 
+for s = 1:length(scanfiles)
+    sf = scanfiles{s};
+    for subj = 1:length(sf)
+        fn = sf{subj};
+        strEnd = strfind(fn, '---');
+        pnames{s}{subj} = fn(1:(strEnd(1) - 1));
+    end
+end
+clear strEnd
+
 MeasurementName = yname;
-BaselineMeasurementTable = table('RowNames', chanselName);
+%clear BaselineMeasurementTable
+BaselineMeasurementTable = table();
+%BaselineMeasurementTable = table('VariableNames', chanselName);
 
 for s = 1:length(scanfiles)
     sf = scanfiles{s};
     dataTables = DATATABLES_chansel{s};
     for subj = 1:length(sf)
         fn = sf{subj} 
-        pname = fn(1:3);
+        pname = pnames{s}{subj};
         dataTable = dataTables{subj};
 
         blTable = dataTable.BaselineBefore;
@@ -555,21 +570,28 @@ for s = 1:length(scanfiles)
             'mean', 0, ...
             'SD',   0, ...
             'SE',   0);
-            Y_stats = repmat(Ystat, length(tY_trial), size(tY_trial{1},2));
+%            Y_stats = repmat(Ystat, length(tY_trial), size(tY_trial{1},2));
             trl = 1;
             tY = tY_trial{trl}; Y = tY(:,:,2);
             for ch = 1:size(tY,2)
                 y = Y(:,ch);
-                Y_stats(ch).mean = mean(y, 'omitnan');
-                Y_stats(ch).SD   = std(y, 'omitnan'); 
-                Y_stats(ch).SE   = Y_stats(ch).SD / sqrt(length(y));
+
+                Ystat.mean = mean(y, 'omitnan');
+                Ystat.SD   = std(y, 'omitnan'); 
+                Ystat.SE   = Y_stats(ch).SD / sqrt(length(y));
+
+                BaselineMeasurementTable{pname,chanselName{ch}} = Ystat;
+                size(BaselineMeasurementTable)
             end
-            Y_stats = Y_stats';
-        eval(['BaselineMeasurementTable.',pname,' = Y_stats']);
+%            Y_stats = Y_stats';
+%        eval(['BaselineMeasurementTable.',pname,' = Y_stats;']);
     end
 end
 
+%BaselineMeasurementTable.Properties.VariableNames = chanselName;
+
 %% hypothesis testing 
+%{
 % make more robust with more than 2 experimental groups / more baselines? 
 
 pvals = zeros(3, ...
@@ -653,7 +675,7 @@ for ch = 1:length(chanselName)
 end
 
 saveas(fig, [svloc,yname,' StatsBarPlot'], 'fig');
-
+%}
 %% helper functions 
 
 function outArr = ArrCat(Arr1, Arr2)
