@@ -478,8 +478,8 @@ for s = 1:length(scanfiles)
 end
 
 %% plotting 
-%comboSubjTblSel = comboSubjTbl(:,[1,3,4]);
-comboSubjTblSel = comboSubjTbl(:,[1,3,4,2]);
+comboSubjTblSel = comboSubjTbl(:,[1,3]);
+%comboSubjTblSel = comboSubjTbl(:,[1,3,4,2]);
 fig = figure('Units', 'Normalized', 'Position', [0 0 1 1]); 
 W = width(comboSubjTblSel); H = height(comboSubjTblSel); idx = 1;
 for c = 1:W
@@ -491,25 +491,30 @@ for c = 1:W
         data_val = mean(data.powerSpectrum, 3);      % y-value = mean
         data_erb =  std(data.powerSpectrum, [], 3);  % err bar = 1SD
         data_hor = data.frequency1side;              % x-value = freq
+        data_erb = data_erb /sqrt(length(data_hor)); % err bar = 1SE
 
         ax(idx) = subplot(W,H,idx);
         title([typePat,' ',typeStim]);
         hold on; grid on; 
         for chidx = 1:data.nbchan
             colr = chanColor(data.chanlocs(chidx), data.chanlocs);
-            errorbar(data_hor, data_val(chidx,:), zeros(size(data_hor)), data_erb(chidx,:), 'Color', colr);
+            %errorbar(data_hor, data_val(chidx,:), zeros(size(data_hor)), data_erb(chidx,:), 'Color', colr);
+            %errorbar(data_hor, data_val(chidx,:), data_erb(chidx,:), 'Color', colr, 'LineWidth', 1);
+            plot(data_hor, data_val(chidx,:), 'Color',colr, 'LineWidth',1.5);
         end
         ylabel('Power (\muV^2 s^2)'); 
         xlabel('Frequency (Hz)');
+        legend({somechan.labels});
         set(gca, 'YScale', 'log');
+        
+        set(gca, 'FontSize', 16);
 
         clear data data_val data_erb data_hor
         idx = idx + 1;
     end
 end
 linkaxes(ax);
-xlim([0 80]); 
-legend({somechan.labels});
+xlim([0 50]); 
 
 %saveas(fig, [svloc,yname,' Spectra'], 'fig');
 
@@ -545,6 +550,7 @@ function rgb = chanColor(chloc, chlocs)
     chXYZ = chXYZ - min(allXYZ);
     allXYZ = allXYZ - min(allXYZ);
     rgb = chXYZ./max(allXYZ);
+    rgb = .7 * rgb;
 end
 
 function [sel, listOut] = listdlg_selectWrapper(list, SelectionMode, PromptString)
