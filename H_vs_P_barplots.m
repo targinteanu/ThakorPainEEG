@@ -355,9 +355,11 @@ for chan = allchan
 end
 [chansel, chanselName] = listdlg_selectWrapper({allchan.labels}, ...
     'multiple', 'Select Channels:');
+allchan0 = allchan; allchan = allchan(chansel);
 
 %% combination "subjects" 
 comboSubj = cell(2, length(scanfiles));
+DATATABLES_chansel = DATATABLES;
 
 for s = 1:length(scanfiles)
 
@@ -390,11 +392,15 @@ for s = 1:length(scanfiles)
                     ord(ch) = find( ...
                         strcmpi(somechan(ch).labels, {EEG_all.chanlocs.labels}) );
                 end
-                cumuTY = cat(1, cumuTY, tY(:,ord,:));
+                tY = tY(:,ord,:);
+                cumuTY = cat(1, cumuTY, tY);
+                tY_trial{trl} = tY;
             end
             cumuTYsubj{c} = cumuTY;
+            dataTable{4,c} = {tY_trial};
         end
         cumuTYs = [cumuTYs; cumuTYsubj];
+        dataTables{subj} = dataTable;
     end
 
     cumuTYsubj = cell(1, size(cumuTYs,2));
@@ -407,6 +413,7 @@ for s = 1:length(scanfiles)
     end
 
     comboSubj{1, s} = cumuTYsubj; comboSubj{2, s} = somechan;
+    DATATABLES_chansel{s} = dataTables;
     clear cumuTY cumuTYs cumuTYsubj somechan dataTable dataTables ...
           EEG_all tY_trial tY ord 
 end
@@ -423,7 +430,7 @@ clr = {[  1, 66,130]/255, ... navy blue
        [ 66,174, 73]/255, ... green 
        [213, 32, 39]/255, ... red
        [141,153,193]/255, ... purple blue 
-       [244,154,192]/255, ... pink 
+       [244,154,192]/255, ... pink
        };
 mkr = {'o', '^', 's', 'p', 'h', 'd', '>', 'v', '<'};
 spc2 = 2; spc1 = 3; spc3 = 4;
@@ -525,6 +532,42 @@ for ch = 1:length(chanselName)
 end
 
 saveas(fig, [svloc,yname,' AllTrialsPlot'], 'fig');
+
+%% export baseline stat as mat file 
+MeasurementName = yname;
+BaselineMeasurementTable = table('RowNames', chanselName);
+
+for s = 1:length(scanfiles)
+    sf = scanfiles{s};
+    dataTables = DATATABLES_chansel{s};
+    for subj = 1:length(sf)
+        fn = sf{subj} 
+        pname = fn(1:3);
+        dataTable = dataTables{subj};
+
+        blTable = dataTable.BaselineBefore;
+        tY_trial = blTable{4};
+        EEG_all = blTable{1};
+        if length(tY_trial) > 1
+            warning('Using first baseline trial only.')
+        end
+        Ystat = struct(...
+            'mean', 0, ...
+            'SD',   0, ...
+            'SE',   0);
+            Y_stats = repmat(Ystat, length(tY_trial), size(tY_trial{1},2));
+            trl = 1;
+            tY = tY_trial{trl}; Y = tY(:,:,2);
+            for ch = 1:size(tY,2)
+                y = Y(:,ch);
+                Y_stats(ch).mean = mean(y, 'omitnan');
+                Y_stats(ch).SD   = std(y, 'omitnan'); 
+                Y_stats(ch).SE   = Y_stats(ch).SD / sqrt(length(y));
+            end
+            Y_stats = Y_stats';
+        eval(['BaselineMeasurementTable.',pname,' = Y_stats']);
+    end
+end
 
 %% hypothesis testing 
 % make more robust with more than 2 experimental groups / more baselines? 
