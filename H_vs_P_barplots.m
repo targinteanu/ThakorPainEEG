@@ -330,6 +330,7 @@ for DT = 1:length(DATATABLES)
 end
 
 %% channel selection 
+% get all channel names of all EEGs 
 allchan = [];
 for s = 1:length(scanfiles)
     sf = scanfiles{s};
@@ -344,9 +345,31 @@ for s = 1:length(scanfiles)
 end
 clear sf dataTable dataTables EEG
 
-figure; hold on;
+% eliminate repeats (case insensitive) 
 [~,idx] = unique(upper({allchan.labels})); 
 allchan = allchan(idx);
+
+% only include chans common to all EEGs 
+idx = true(size(allchan));
+for s = 1:length(scanfiles)
+    sf = scanfiles{s};
+    dataTables = DATATABLES{s};
+    for subj = 1:length(sf)
+        dataTable = dataTables{subj};
+        for c = 1:width(dataTable)
+            EEG = dataTable{1,c}{1};
+            for ch = 1:length(allchan)
+                idx(ch) = idx(ch) & ...
+                    sum( strcmpi(allchan(ch).labels, {EEG.chanlocs.labels}) );
+            end
+        end
+    end
+end
+allchan = allchan(idx);
+clear sf dataTable dataTables EEG idx
+
+% select desired chans 
+figure; hold on;
 for chan = allchan
     plot3(chan.X, chan.Y, chan.Z, '.', ...
         'Color', chanColor(chan, allchan));
@@ -578,10 +601,10 @@ for s = 1:length(scanfiles)
 
                 Ystat.mean = mean(y, 'omitnan');
                 Ystat.SD   = std(y, 'omitnan'); 
-                Ystat.SE   = Y_stats(ch).SD / sqrt(length(y));
+                Ystat.SE   = Ystat.SD / sqrt(length(y));
 
                 BaselineMeasurementTable{pname,chanselName{ch}} = Ystat;
-                size(BaselineMeasurementTable)
+%                size(BaselineMeasurementTable)
             end
 %            Y_stats = Y_stats';
 %        eval(['BaselineMeasurementTable.',pname,' = Y_stats;']);
@@ -589,6 +612,8 @@ for s = 1:length(scanfiles)
 end
 
 %BaselineMeasurementTable.Properties.VariableNames = chanselName;
+
+save([svloc,MeasurementName,' Table.mat'],"BaselineMeasurementTable","MeasurementName","allchan","fcn");
 
 %% hypothesis testing 
 %{
