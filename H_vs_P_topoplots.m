@@ -31,7 +31,14 @@ mkdir(svloc); svloc = [svloc,'/'];
 
 %% select what to plot
 
-[fcn, yname, ylims] = MeasurementSelector();
+nMeas = inputdlg('How many measurements?');
+nMeas = str2num(nMeas{1});
+
+fcns = cell(1, nMeas); 
+ynames = fcns; ylims = fcns;
+for n = 1:nMeas
+    [fcns{n}, ynames{n}, ylims{n}] = MeasurementSelector();
+end
 
 %% calculations 
 timeBetweenEvents = 5; timeAfterLast = 3; % seconds 
@@ -40,10 +47,13 @@ DATATABLES = cell(size(scanfiles));
 for s = 1:length(scanfiles)
     sf = scanfiles{s};
 
-    dataTables = cell(length(sf),1);
+    dataTables = cell(length(sf),nMeas);
     for subj = 1:length(sf)
         fn = sf{subj}
         load(fn);
+
+        for n = 1:nMeas
+        fcn = fcns{n};
 
         % run calculations on desired variables
         disp('calculating desired variables')
@@ -89,9 +99,13 @@ for s = 1:length(scanfiles)
             fcnTbl(EEG_table, Epoch_table, EpochSpec_table, fcn, testVars);
         %}
 
-        dataTables{subj} = tempTbl;
+        dataTables{subj, n} = tempTbl;
         clear tempTbl tempArr tempArr1 tempArr2 curEpoc curSpec
-        clear tempTbl EEG_table Epoch_table EpochSpec_table Spec_table
+
+        clear fcn
+        end
+        clear EEG_table Epoch_table EpochSpec_table Spec_table
+
     end
 
     DATATABLES{s} = dataTables;
@@ -104,7 +118,7 @@ maxTrialDur = 0; % s
 for DT = 1:length(DATATABLES)
     dataTables = DATATABLES{DT};
     for subj = 1:length(dataTables)
-        EEG_table = dataTables{subj}{1,:};
+        EEG_table = dataTables{subj,1}{1,:};
         for c = 1:length(EEG_table)
             EEG = EEG_table{c};
             if ~isempty(EEG)
@@ -135,7 +149,10 @@ for DT = 1:length(DATATABLES)
     sf = scanfiles{DT};
     for subj = 1:length(dataTables)
         fn = sf{subj}
-        dataTable = dataTables{subj};
+
+        for n = 1:nMeas
+
+        dataTable = dataTables{subj,n};
 
         EEG_table = dataTable{1,:};
         EEG_trial = EEG_table;
@@ -323,8 +340,10 @@ for DT = 1:length(DATATABLES)
         end
         
         dataTable{2,:} = EEG_trial; dataTable{4,:} = tY_trial;
-        dataTables{subj} = dataTable; 
+        dataTables{subj,n} = dataTable; 
         clear EEG_table tY_table EEG_trial tY_trial
+
+        end
     end
     DATATABLES{DT} = dataTables;
     clear dataTables dataTable sf
@@ -338,7 +357,7 @@ for s = 1:length(scanfiles)
     sf = scanfiles{s};
     dataTables = DATATABLES{s};
     for subj = 1:length(sf)
-        dataTable = dataTables{subj};
+        dataTable = dataTables{subj,1};
         for c = 1:width(dataTable)
             EEG = dataTable{1,c}{1};
             allchan = [allchan, EEG.chanlocs];
@@ -357,7 +376,7 @@ for s = 1:length(scanfiles)
     sf = scanfiles{s};
     dataTables = DATATABLES{s};
     for subj = 1:length(sf)
-        dataTable = dataTables{subj};
+        dataTable = dataTables{subj,1};
         for c = 1:width(dataTable)
             EEG = dataTable{1,c}{1};
             for ch = 1:length(allchan)
@@ -383,16 +402,14 @@ end
 allchan0 = allchan; allchan = allchan(chansel);
 %}
 %% combination "subjects" 
-varnames = DATATABLES{1}{1}.Properties.VariableNames;
-comboSubjTbl = table('size',[length(scanfileNames),length(varnames)], ...
-                     'VariableTypes',repmat("cell",size(varnames)), ...
-                     'VariableNames',varnames,'RowNames',scanfileNames);
+varnames = DATATABLES{1}{1,1}.Properties.VariableNames;
+comboSubjTbls = cell(1, nMeas);
 
 somechan = true(size(allchan));
 for s = 1:length(scanfiles)
     dataTables = DATATABLES{s};
-    for subj = 1:length(dataTables)
-        dataTable = dataTables{subj};
+    for subj = 1:size(dataTables,1)
+        dataTable = dataTables{subj,1};
         for c = 1:width(dataTable)
             EEG_all = dataTable{1,c}{1};
             for ch = 1:length(somechan)
@@ -409,8 +426,15 @@ for s = 1:length(scanfiles)
 
     dataTables = DATATABLES{s};
     cumuTYs = {};
-    for subj = 1:length(dataTables)
-        dataTable = dataTables{subj};
+
+    for n = 1:nMeas
+comboSubjTbl = table('size',[length(scanfileNames),length(varnames)], ...
+                     'VariableTypes',repmat("cell",size(varnames)), ...
+                     'VariableNames',varnames,'RowNames',scanfileNames);
+
+    for subj = 1:size(dataTables,1)
+
+        dataTable = dataTables{subj,n};
         cumuTYsubj = cell(1, width(dataTable));
         for c = 1:width(dataTable)
             EEG_all  = dataTable{1,c}{1};
@@ -428,6 +452,7 @@ for s = 1:length(scanfiles)
             cumuTYsubj{c} = cumuTY; % diff stimuli within one subj
         end
         cumuTYs = [cumuTYs; cumuTYsubj]; % #subjs x #stimtypes
+
     end
 
     % concat all subjs (collapse cumuTYs vertically)
@@ -439,22 +464,30 @@ for s = 1:length(scanfiles)
         comboSubjTbl{s,c} = {cumuTY};
     end
 
-    clear cumuTY cumuTYs cumuTYsubj dataTable dataTables ...
-          EEG_all tY_trial tY ord 
+    comboSubjTbls{n} = comboSubjTbl;
+
+    clear cumuTY cumuTYsubj dataTable ...
+          EEG_all tY_trial tY ord comboSubjTbl
+
+    end
+    clear dataTables cumuTYs
 end
 % everything in comboSubj should be ordered according to somechan
 
 %% comparison 
 % make more robust with more than 2 experimental groups / more baselines? 
 varnames = DATATABLES{1}{1}.Properties.VariableNames;
+p_alpha = 0.01; % uncertainty for stat significance 
+maxstatval = -Inf; minstatval = Inf;
+statsTables = cell(size(comboSubjTbls));
+
+for n = 1:nMeas
+comboSubjTbl = comboSubjTbls{n};
 
 statsTable = table('size',[3,length(varnames)], ...
                    'VariableTypes',repmat("cell",size(varnames)), ...
                    'RowNames',{'P vs H','H vs baseline','P vs baseline'}, ...
                    'VariableNames',varnames);
-
-p_alpha = 0.01; % uncertainty for stat significance 
-maxstatval = -Inf; minstatval = Inf;
 
 % statistical testing 
 for c = 1:width(comboSubjTbl)
@@ -516,7 +549,11 @@ for r = 1:height(statsTable)
         maxstatval = max(maxstatval, max(S)); minstatval = min(minstatval, min(S));
     end
 end
-clear S
+statsTables{n} = statsTable;
+
+clear S statsTable
+end
+
 maxstatval = max(abs(maxstatval), abs(minstatval));
 minstatval = -maxstatval;
 
@@ -524,13 +561,17 @@ minstatval = -maxstatval;
 plot_vs_baseline = {'TempStim', 'PinPrick'};
 plot_P_vs_H      = {'BaselineBefore'};
 
-fig = figure('Units', 'Normalized', 'Position', [0 0 1 .3]); 
+fig = figure('Units', 'Normalized', 'Position', [0 0 1 min(1,.25*nMeas)]); 
 sgtitle([yname,' t statistic; * p < ',num2str(p_alpha)]);
 W = 2*length(plot_vs_baseline) + length(plot_P_vs_H);
 
 w = 1;
+
+for n = 1:nMeas
+statsTable = statsTables{n};
+
 for idx = 1:length(plot_P_vs_H)
-    subplot(1,W, w);
+    subplot(nMeas,W, w);
     pltname = plot_P_vs_H{idx};
     S = statsTable(1, strcmp(pltname, statsTable.Properties.VariableNames));
     title([pltname,' ',S.Properties.RowNames{1}]);
@@ -555,7 +596,9 @@ for idx = 1:length(plot_vs_baseline)
         w = w + 1;
     end
 end
-clear S SS
+
+clear S SS statsTable
+end
 
 saveas(fig, [svloc,yname,' StatsBarPlot'], 'fig');
 
