@@ -331,7 +331,7 @@ for DT = 1:length(DATATABLES)
 end
 
 %% channel selection 
-%{
+%%{
 % get all channel names of all EEGs 
 allchan = [];
 for s = 1:length(scanfiles)
