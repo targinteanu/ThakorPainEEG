@@ -478,9 +478,17 @@ for s = 1:length(scanfiles)
 end
 
 %% plotting 
-comboSubjTblSel = comboSubjTbl(:,[1,3]);
+comboSubjTblSel = comboSubjTbl; 
+comboSubjTblSel.Properties.VariableNames = {...
+    'Baseline',          ... BaselineBefore
+    'BaselineAfter',     ... BaselineAfter
+    'Heat Stimulus',     ... TempStim
+    'Sharp Stimulus',    ... PinPrick 
+    };
+subplotTitles = {'(A)', '(B)', '(C)', '(D)', '(E)', '(F)', '(G)', '(H)'};
+comboSubjTblSel = comboSubjTblSel(:,[1,3]);
 %comboSubjTblSel = comboSubjTbl(:,[1,3,4,2]);
-fig = figure('Units', 'Normalized', 'Position', [0 0 1 1]); 
+fig = figure('Units', 'Normalized', 'Position', [0 0 .6 1]); 
 W = width(comboSubjTblSel); H = height(comboSubjTblSel); idx = 1;
 for c = 1:W
     for r = 1:H
@@ -494,27 +502,30 @@ for c = 1:W
         data_erb = data_erb /sqrt(length(data_hor)); % err bar = 1SE
 
         ax(idx) = subplot(W,H,idx);
-        title([typePat,' ',typeStim]);
+        title([subplotTitles{idx},' ',typePat,' ',typeStim]);
         hold on; grid on; 
         for chidx = 1:data.nbchan
             colr = chanColor(data.chanlocs(chidx), data.chanlocs);
             %errorbar(data_hor, data_val(chidx,:), zeros(size(data_hor)), data_erb(chidx,:), 'Color', colr);
             %errorbar(data_hor, data_val(chidx,:), data_erb(chidx,:), 'Color', colr, 'LineWidth', 1);
-            plot(data_hor, data_val(chidx,:), 'Color',colr, 'LineWidth',1.5);
+            plot(data_hor, data_val(chidx,:), 'Color',colr, 'LineWidth',2);
         end
         ylabel('Power (\muV^2 s^2)'); 
         xlabel('Frequency (Hz)');
+%        xticks(sort(unique([BandTableHz.minimumFrequency; BandTableHz.maximumFrequency])));
+        xticks([0.5, 4, 8, 13, 30, 80]);
         legend({somechan.labels});
         set(gca, 'YScale', 'log');
         
-        set(gca, 'FontSize', 16);
+        set(gca, 'FontSize', 18);
 
         clear data data_val data_erb data_hor
         idx = idx + 1;
     end
 end
 linkaxes(ax);
-xlim([0 50]); 
+xlim([0 30]); 
+ylim([10^4, 10^8]);
 
 %saveas(fig, [svloc,yname,' Spectra'], 'fig');
 
