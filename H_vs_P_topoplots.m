@@ -577,15 +577,16 @@ plot_P_vs_H_2 = plot_P_vs_H;
 for idx = 1:length(plot_P_vs_H_2)
     plot_P_vs_H_2{idx} = [plot_P_vs_H_2{idx},' Patient vs Control'];
 end
+plot_P_vs_H_2 = plot_P_vs_H_2';
 plot_vs_baseline_2 = cell(1, length(plot_vs_baseline), length(scanfileNames));
-for r = 1:length(plot_vs_baseline)
-    for c = 1:length(scanfileNames)
-        plot_vs_baseline_2{r,c} = [scanfileNames{c},' ',plot_vs_baseline{idx},' vs Baseline'];
+for c = 1:length(plot_vs_baseline)
+    for r = 1:length(scanfileNames)
+        plot_vs_baseline_2{r,c} = [scanfileNames{r},' ',plot_vs_baseline{c},' vs Baseline'];
     end
 end
 plot_vs_baseline_2 = plot_vs_baseline_2(:);
 
-lblSubplots(nMeas,W, ynames,[plot_P_vs_H; plot_vs_baseline_2], ...
+lblSubplots(nMeas,W, ynames,[plot_P_vs_H_2; plot_vs_baseline_2], ...
             flipRC, 1, 'westoutside');
 
 for n = 1:nMeas
