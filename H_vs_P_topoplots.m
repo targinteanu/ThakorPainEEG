@@ -550,6 +550,12 @@ for r = 1:height(statsTable)
         maxstatval = max(maxstatval, max(S)); minstatval = min(minstatval, min(S));
     end
 end
+statsTable.Properties.VariableNames = {...
+    'Baseline',          ... BaselineBefore
+    'BaselineAfter',     ... BaselineAfter
+    'Heat Stimulus',     ... TempStim
+    'Sharp Stimulus',    ... PinPrick 
+    };
 statsTables{n} = statsTable;
 
 clear S statsTable
@@ -559,8 +565,8 @@ maxstatval = max(abs(maxstatval), abs(minstatval));
 minstatval = -maxstatval;
 
 %% plot comparison 
-plot_vs_baseline = {'TempStim', 'PinPrick'};
-plot_P_vs_H      = {'BaselineBefore'};
+plot_vs_baseline = {'Heat Stimulus', 'Sharp Stimulus'};
+plot_P_vs_H      = {'Baseline'};
 
 fig = figure('Units', 'Normalized', 'Position', [0 0 1 min(1,.25*nMeas)]); 
 sgtitle([' t statistic; * p < ',num2str(p_alpha)]);
