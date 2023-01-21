@@ -565,12 +565,12 @@ maxstatval = max(abs(maxstatval), abs(minstatval));
 minstatval = -maxstatval;
 
 %% plot comparison 
-plot_vs_baseline = {'Heat Stimulus', 'Sharp Stimulus'};
+plot_vs_baseline = {'Heat Stimulus'};
 plot_P_vs_H      = {'Baseline'};
 
-fig = figure('Units', 'Normalized', 'Position', [0 0 1 min(1,.25*nMeas)]); 
-sgtitle([' t statistic; * p < ',num2str(p_alpha)]);
 W = 2*length(plot_vs_baseline) + length(plot_P_vs_H) + 1;
+fig = figure('Units', 'Normalized', 'Position', [0 0 min(1,.2*W) min(1,.25*nMeas)]); 
+sgtitle([' t statistic; * p < ',num2str(p_alpha)]);
 
 w = 1;
 
@@ -607,7 +607,7 @@ for idx = 1:length(plot_vs_baseline)
         w = w + 1;
     end
 end
-colorbar;
+colorbar('Location', 'eastoutside');
 
 clear S SS statsTable
 end
