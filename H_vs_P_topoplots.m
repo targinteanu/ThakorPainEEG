@@ -567,25 +567,36 @@ minstatval = -maxstatval;
 %% plot comparison 
 plot_vs_baseline = {'Heat Stimulus'};
 plot_P_vs_H      = {'Baseline'};
+flipRC = false;
 
-W = 2*length(plot_vs_baseline) + length(plot_P_vs_H) + 1;
-fig = figure('Units', 'Normalized', 'Position', [0 0 min(1,.2*W) min(1,.25*nMeas)]); 
+W = 2*length(plot_vs_baseline) + length(plot_P_vs_H);
+fig = figure('Units', 'Normalized', 'Position', [0 0 1 1]); 
 sgtitle([' t statistic; * p < ',num2str(p_alpha)]);
 
-w = 1;
+plot_P_vs_H_2 = plot_P_vs_H;
+for idx = 1:length(plot_P_vs_H_2)
+    plot_P_vs_H_2{idx} = [plot_P_vs_H_2{idx},' Patient vs Control'];
+end
+plot_vs_baseline_2 = cell(1, length(plot_vs_baseline), length(scanfileNames));
+for r = 1:length(plot_vs_baseline)
+    for c = 1:length(scanfileNames)
+        plot_vs_baseline_2{r,c} = [scanfileNames{c},' ',plot_vs_baseline{idx},' vs Baseline'];
+    end
+end
+plot_vs_baseline_2 = plot_vs_baseline_2(:);
+
+lblSubplots(nMeas,W, ynames,[plot_P_vs_H; plot_vs_baseline_2], ...
+            flipRC, 1, 'westoutside');
 
 for n = 1:nMeas
 statsTable = statsTables{n};
-
-subplot(nMeas,W, w);
-ylabel(ynames{n});
-w = w+1;
+w = 1;
 
 for idx = 1:length(plot_P_vs_H)
-    subplot(nMeas,W, w);
+    subplot_Wrapper(nMeas,W, n,w, flipRC);
     pltname = plot_P_vs_H{idx};
     S = statsTable(1, strcmp(pltname, statsTable.Properties.VariableNames));
-    title([pltname,' ',S.Properties.RowNames{1}]);
+%    title([pltname,' ',S.Properties.RowNames{1}]);
     S = S{1,1}{1};
     topoplot([S.tstat], [S.chan], ...
         'emarker2', {find([S.pval]<p_alpha), '*', 'k'}, ...
@@ -598,8 +609,8 @@ for idx = 1:length(plot_vs_baseline)
     pltname = plot_vs_baseline{idx};
     S = statsTable([2,3], strcmp(pltname, statsTable.Properties.VariableNames));
     for idx2 = 1:height(S)
-        subplot(nMeas,W, w);
-        title([pltname,' ',S.Properties.RowNames{idx2}]);
+        subplot_Wrapper(nMeas,W, n,w, flipRC);
+%        title([pltname,' ',S.Properties.RowNames{idx2}]);
         SS = S{idx2,1}{1};
         topoplot([SS.tstat], [SS.chan], ...
             'emarker2', {find([SS.pval]<p_alpha), '*', 'k'}, ...
@@ -607,7 +618,7 @@ for idx = 1:length(plot_vs_baseline)
         w = w + 1;
     end
 end
-colorbar('Location', 'eastoutside');
+%colorbar('Location', 'eastoutside');
 
 clear S SS statsTable
 end
@@ -645,6 +656,105 @@ function rgb = chanColor(chloc, chlocs)
     chXYZ = chXYZ - min(allXYZ);
     allXYZ = allXYZ - min(allXYZ);
     rgb = chXYZ./max(allXYZ);
+end
+
+function subplot_Wrapper(H,W,r,c,flipRC)
+    if flipRC
+        HH = H; H = W; W = HH;
+        rr = r; r = c; c = r;
+    end
+    W = W+1; c = c+1; % pad an extra column for vertical labels 
+    p = (r-1)*W + c;
+    subplot(H,W,p);
+end
+function lblSubplots(H,W,rttl,cttl,flipRC,cbCol,cbLcn)
+    if nargin < 7
+        cbLcn = 'westoutside';
+        if nargin < 6
+            cbCol = 1;
+        end
+    end
+    %clbl = {'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'};
+
+    % label all plots 
+    for r = 2:H
+        for c = 1:W
+            subplot_Wrapper(H,W,r,c,flipRC)
+            title([clbl(c),'.',rlbl(r)]);
+        end
+    end
+
+    if flipRC 
+        for r = 1:W
+            % label rows
+            subplot_Wrapper(W,H,r,0,false)
+            ylabel([clbl(r),') ',cttl{r}]);
+            % colorbars 
+            subplot_Wrapper(W,H,r,cbCol,false)
+            colorbar('Location',cbLcn);
+        end
+        for c = 1:H
+            % label cols 
+            subplot_Wrapper(W,H,1,c,false)
+            title({[rlbl(c),') ',rttl{c}], ...
+                [clbl(1),'.',rlbl(c)]})
+        end
+    else 
+        for r = 1:H
+            % label rows
+            subplot_Wrapper(H,W,r,0,false)
+            ylabel([rlbl(r),') ',rttl{r}]);
+            % colorbars 
+            subplot_Wrapper(H,W,r,cbCol,false)
+            colorbar('Location',cbLcn);
+        end
+        for c = 1:W
+            % label cols 
+            subplot_Wrapper(H,W,1,c,false)
+            title({[clbl(c),') ',cttl{c}], ...
+                [clbl(c),'.',rlbl(1)]})
+        end
+    end
+
+    function let = clbl(numval)
+        numval = numval - 1;
+        base = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        protoLet = dec2base(numval, length(base)); let = protoLet;
+        shiftbase = ['0123456789',base];
+        for idx = 1:length(protoLet)
+            loc = find(shiftbase == protoLet(idx));
+            let(idx) = base(loc);
+        end
+    end
+    function num = rlbl(numval)
+        base = 'ivxlcdm';
+        baseval = [1, 5, 10, 50, 100, 500, 1000];
+        almostval = baseval - baseval';
+
+        num = '';
+        while numval > 0
+            % "irregular" cases (iv, ix, etc)
+            for idxNext = fliplr(1:length(baseval))
+                for idxDiff = 1:length(baseval)
+                    if numval == almostval(idxDiff, idxNext)
+                        num = [num,base(idxDiff),base(idxNext)];
+                        numval = 0;
+                        break; 
+                    end
+                end
+                if numval == 0
+                    break;
+                end
+            end
+            if numval == 0
+                break;
+            end
+
+            % "regular" cases (no iv, ix, etc)
+            idxFirst = find(numval >= baseval); idxFirst = idxFirst(end);
+            num = [num,base(idxFirst)]; numval = numval - baseval(idxFirst);
+        end
+    end
 end
 
 function [sel, listOut] = listdlg_selectWrapper(list, SelectionMode, PromptString)
