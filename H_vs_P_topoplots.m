@@ -422,15 +422,15 @@ end
 somechan = allchan(somechan);
 % somechan = only those selected AND in all EEGs of all subjects of all groups
 
+for n = 1:nMeas
+comboSubjTbl = table('size',[length(scanfileNames),length(varnames)], ...
+                     'VariableTypes',repmat("cell",size(varnames)), ...
+                     'VariableNames',varnames,'RowNames',scanfileNames);
+
 for s = 1:length(scanfiles)
 
     dataTables = DATATABLES{s};
     cumuTYs = {};
-
-    for n = 1:nMeas
-comboSubjTbl = table('size',[length(scanfileNames),length(varnames)], ...
-                     'VariableTypes',repmat("cell",size(varnames)), ...
-                     'VariableNames',varnames,'RowNames',scanfileNames);
 
     for subj = 1:size(dataTables,1)
 
@@ -467,12 +467,13 @@ comboSubjTbl = table('size',[length(scanfileNames),length(varnames)], ...
     comboSubjTbls{n} = comboSubjTbl;
 
     clear cumuTY cumuTYsubj dataTable ...
-          EEG_all tY_trial tY ord comboSubjTbl
+          EEG_all tY_trial tY ord
 
-    end
     clear dataTables cumuTYs
 end
 % everything in comboSubj should be ordered according to somechan
+clear comboSubjTbl
+end
 
 %% comparison 
 % make more robust with more than 2 experimental groups / more baselines? 
@@ -562,13 +563,17 @@ plot_vs_baseline = {'TempStim', 'PinPrick'};
 plot_P_vs_H      = {'BaselineBefore'};
 
 fig = figure('Units', 'Normalized', 'Position', [0 0 1 min(1,.25*nMeas)]); 
-sgtitle([yname,' t statistic; * p < ',num2str(p_alpha)]);
-W = 2*length(plot_vs_baseline) + length(plot_P_vs_H);
+sgtitle([' t statistic; * p < ',num2str(p_alpha)]);
+W = 2*length(plot_vs_baseline) + length(plot_P_vs_H) + 1;
 
 w = 1;
 
 for n = 1:nMeas
 statsTable = statsTables{n};
+
+subplot(nMeas,W, w);
+ylabel(ynames{n});
+w = w+1;
 
 for idx = 1:length(plot_P_vs_H)
     subplot(nMeas,W, w);
@@ -580,27 +585,28 @@ for idx = 1:length(plot_P_vs_H)
         'emarker2', {find([S.pval]<p_alpha), '*', 'k'}, ...
         ...'pmask', [S.pval]<p_alpha, ...
         ...'numcontour',[p_alpha p_alpha], 'contourvals',[S.pval], ...
-        'maplimits', [minstatval, maxstatval]); colorbar;
+        'maplimits', [minstatval, maxstatval]); 
     w = w + 1;
 end
 for idx = 1:length(plot_vs_baseline)
     pltname = plot_vs_baseline{idx};
     S = statsTable([2,3], strcmp(pltname, statsTable.Properties.VariableNames));
     for idx2 = 1:height(S)
-        subplot(1,W, w);
+        subplot(nMeas,W, w);
         title([pltname,' ',S.Properties.RowNames{idx2}]);
         SS = S{idx2,1}{1};
         topoplot([SS.tstat], [SS.chan], ...
             'emarker2', {find([SS.pval]<p_alpha), '*', 'k'}, ...
-            'maplimits', [minstatval, maxstatval]); colorbar;
+            'maplimits', [minstatval, maxstatval]); 
         w = w + 1;
     end
 end
+colorbar;
 
 clear S SS statsTable
 end
 
-saveas(fig, [svloc,yname,' StatsBarPlot'], 'fig');
+%saveas(fig, [svloc,yname,' StatsTopoPlot'], 'fig');
 
 %% helper functions 
 
