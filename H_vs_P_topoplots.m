@@ -571,7 +571,7 @@ flipRC = false;
 
 W = 2*length(plot_vs_baseline) + length(plot_P_vs_H);
 fig = figure('Units', 'Normalized', 'Position', [0 0 1 1]); 
-sgtitle([' t statistic; * p < ',num2str(p_alpha)]);
+%sgtitle([' t statistic; * p < ',num2str(p_alpha)]);
 
 plot_P_vs_H_2 = plot_P_vs_H;
 for idx = 1:length(plot_P_vs_H_2)
@@ -662,7 +662,7 @@ end
 function subplot_Wrapper(H,W,r,c,flipRC)
     if flipRC
         HH = H; H = W; W = HH;
-        rr = r; r = c; c = r;
+        rr = r; r = c; c = rr;
     end
     W = W+1; c = c+1; % pad an extra column for vertical labels 
     p = (r-1)*W + c;
@@ -678,7 +678,7 @@ function lblSubplots(H,W,rttl,cttl,flipRC,cbCol,cbLcn)
     %clbl = {'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'};
 
     % label all plots 
-    for r = 2:H
+    for r = 1:H
         for c = 1:W
             subplot_Wrapper(H,W,r,c,flipRC)
             title([clbl(c),'.',rlbl(r)]);
