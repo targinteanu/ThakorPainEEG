@@ -27,7 +27,7 @@ svloc = [postproDir,'/System ',...
 [fcn, yname, ylims] = MeasurementSelector();
 
 %% loading 
-RPs = cell(length(scanfiles), 2, 2); Ys = cell(length(scanfiles), 2, 3);
+RPs = cell(length(scanfiles), 2, 2); Ys = cell(length(scanfiles), 2, 4);
 ratings = cell(length(scanfiles), 2);
 for subj = 1:length(scanfiles)
     fn = scanfiles{subj}
@@ -140,6 +140,7 @@ Pt_boundTimes_PPCPM = eventBoundTimes(Pt_event_PPCPM);
         RP = zeros(2, size(Y,2), size(T,1)); RP(2,:,:) = 1;
         rtg = zeros(size(T,1), 3);
         Yin = nan(size(Y,1), size(Y,2), size(T,1)); Yout = Yin; Yir = Yin;
+        X = zeros(size(Y,1), size(T,1));
         for trl = 1:size(T,1)
             trlEv = evStructs{1,cond}; % <-- change to get ev for specific trial 
 
@@ -155,6 +156,7 @@ Pt_boundTimes_PPCPM = eventBoundTimes(Pt_event_PPCPM);
             ypred = zeros(size(Yy));
             tt = [trlEv.latency]/srate;
             tt = tt( (tt <= ybnd(2)) & (tt >= ybnd(1)) );
+            x = zeros(size(Yy,1),1);
 
             if ~isempty(ty) & (length(th)>1)
                 tt = tt - ty(1); ty = ty - ty(1); th = th - th(1);
@@ -165,6 +167,9 @@ Pt_boundTimes_PPCPM = eventBoundTimes(Pt_event_PPCPM);
                         interp1(th, Yh(:,c), tShift, 'nearest', 'extrap'), ...
                         1:size(Yh,2), 'UniformOutput',false) );
                     ypred = ypred + hShift;
+
+                    [~,xidx] = min(abs(tShift));
+                    x(xidx) = 1;
                 end
 
                 for idx = 1:size(Yy,2)
@@ -173,12 +178,14 @@ Pt_boundTimes_PPCPM = eventBoundTimes(Pt_event_PPCPM);
                 Yin(1:size(ypred,1),1:size(ypred,2),trl) = ypred; 
                 Yout(1:size(Yy,1),1:size(Yy,2),trl) = Yy;
                 Yir(1:size(Yh,1),1:size(Yh,2),trl) = Yh;
+                X(1:length(x),trl) = x;
             end
         end
         RPs{subj, cond, 1} = RP; RPs{subj, cond, 2} = chloc;
-        Ys{subj, cond, 1} = Yin; Ys{subj, cond, 2} = Yout; Ys{subj, cond, 3} = Yir;
+        Ys{subj, cond, 1} = Yin; Ys{subj, cond, 2} = Yout; Ys{subj, cond, 3} = Yir; Ys{subj, cond, 4} = X;
         ratings{subj, cond} = rtg;
-        clear RP chloc T Y t tt tsplit ypred Yy Yh th ty h_idx y_idx hbnd srate rtg
+        clear RP chloc T Y t tt tsplit ypred Yy Yh th ty h_idx y_idx hbnd ybnd srate rtg 
+        clear x X xidx hShift tShift tDelta Yir Yin Yout
         end
     end
     clear BL BLe
@@ -303,6 +310,7 @@ saveas(fig(4), [svloc,yname,' - IR'], 'fig');
 %% prep for sys iden 
 subj = 9; cond = 1; ch = 1; trl = 1;
 Yin = Ys{subj,cond,1}(:,ch,trl); Yout = Ys{subj,cond,2}(:,ch,trl);
+X = Ys{subj,cond,4}(:,trl);
 cens = isnan(Yin) | isnan(Yout);
 Yin = Yin(~cens); Yout = Yout(~cens);
 
