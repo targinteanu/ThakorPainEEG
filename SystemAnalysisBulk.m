@@ -299,6 +299,12 @@ saveas(fig(2), [svloc,yname,' - p value'], 'fig');
 saveas(fig(3), [svloc,yname,' - in-out'], 'fig');
 saveas(fig(4), [svloc,yname,' - IR'], 'fig');
 
+%% prep for sys iden 
+subj = 9; cond = 1; ch = 1; trl = 1;
+Yin = Ys{subj,cond,1}(:,ch,trl); Yout = Ys{subj,cond,2}(:,ch,trl);
+cens = isnan(Yin) | isnan(Yout);
+Yin = Yin(~cens); Yout = Yout(~cens);
+
 %% helper functions 
 function T = eventBoundKNN(evs)
     % not functional - expand??
