@@ -144,7 +144,7 @@ Pt_boundTimes_PPCPM = eventBoundTimes(Pt_event_PPCPM);
             trlEv = evStructs{1,cond}; % <-- change to get ev for specific trial 
 
             tsplit = T(trl,:);
-            tt = [evStructs{1,cond}(tsplit).latency]/srate;
+            tt = [trlEv(tsplit).latency]/srate;
 
             hbnd = tt(1:2) + [0,-.15]; ybnd = tt(2:3);
             h_idx = (t <= hbnd(2)) & (t >= hbnd(1));
@@ -153,7 +153,8 @@ Pt_boundTimes_PPCPM = eventBoundTimes(Pt_event_PPCPM);
             th = t(h_idx);   ty = t(y_idx);
 
             ypred = zeros(size(Yy));
-            tt = tt(2:3);
+            tt = [trlEv.latency]/srate;
+            tt = tt( (tt <= ybnd(2)) & (tt >= ybnd(1)) );
 
             if ~isempty(ty) & (length(th)>1)
                 tt = tt - ty(1); ty = ty - ty(1); th = th - th(1);
