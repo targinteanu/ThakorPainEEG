@@ -59,7 +59,13 @@ for subj = 1:length(scanfiles)
         tempObj = curTbl.BaselineOpen('before experiment');
         objStructs{idx,3} = tempObj{:};
     end
-    clear tempObj tempObj1
+    for cond = 1:3
+        tempObj = objStructs{3,cond};
+        if length(tempObj) > 1
+            objStructs{3,cond} = pop_mergeset(tempObj(1), tempObj(2));
+        end
+    end
+    clear tempObj tempObj1 
 
     % get events ----------------------------------------------------------
     evStructs = cell(3,2);
