@@ -63,37 +63,21 @@ for subj = 1:length(scanfiles)
 
     % get events ----------------------------------------------------------
     evStructs = cell(3,2);
-    tempEEGArr = objStructs{3,1}; 
-    if ~isempty(tempEEGArr)
-        evStructs{3,1} = objStructs{3,1}(1).srate;
-        tempEv = tempEEGArr(1).event;
+    tempEv = objStructs{3,1}; 
+    if ~isempty(tempEv)
+        tempEv = tempEv(1).event;
         evStructs{1,1} = tempEv(strcmp({tempEv.type}, '11'));
-        for idx = 2:length(tempEEGArr)
-            tempEv = tempEEGArr(idx).event;
-            tEvs = [evStructs{1,1}.latency]; 
-            for idxEv = 1:length(tempEv)
-                tempEv(idxEv).latency = tempEv(idxEv).latency + 2*tEvs(end) - tEvs(1);
-            end
-            evStructs{1,1} = [evStructs{1,1}, tempEv(strcmp({tempEv.type}, '11'))];
-        end
         evStructs{2,1} = eventBoundTimes(evStructs{1,1}); % <--- change to split evs by specific trial
+        evStructs{3,1} = objStructs{3,1}(1).srate;
     end
-    tempEEGArr = objStructs{3,2}; 
-    if ~isempty(tempEEGArr)
-        evStructs{3,2} = objStructs{3,2}(1).srate;
-        tempEv = tempEEGArr(1).event;
+    tempEv = objStructs{3,2}; 
+    if ~isempty(tempEv)
+        tempEv = tempEv(1).event;
         evStructs{1,2} = tempEv(strcmp({tempEv.type}, '10'));
-        for idx = 2:length(tempEEGArr)
-            tempEv = tempEEGArr(idx).event;
-            tEvs = [evStructs{1,2}.latency];
-            for idxEv = 1:length(tempEv)
-                tempEv(idxEv).latency = tempEv(idxEv).latency + 2*tEvs(end) - tEvs(1);
-            end
-            evStructs{1,2} = [evStructs{1,2}, tempEv(strcmp({tempEv.type}, '10'))];
-        end
         evStructs{2,2} = eventBoundTimes(evStructs{1,2});
+        evStructs{3,2} = objStructs{3,2}(1).srate;
     end
-    clear tempEv tempEEGArr tEvs
+    clear tempEv
 
     % calculations --------------------------------------------------------
     BL = objStructs{3,3}; BL_t = BL.times/1000'; BL = BL.data';
