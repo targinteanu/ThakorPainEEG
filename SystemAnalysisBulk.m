@@ -308,11 +308,12 @@ saveas(fig(3), [svloc,yname,' - in-out'], 'fig');
 saveas(fig(4), [svloc,yname,' - IR'], 'fig');
 
 %% prep for sys iden 
-subj = 9; cond = 1; ch = 1; trl = 1;
+subj = 4; cond = 1; ch = 2; trl = 4;
 Yin = Ys{subj,cond,1}(:,ch,trl); Yout = Ys{subj,cond,2}(:,ch,trl);
+Yh = Ys{subj,cond,3}(:,ch,trl);
 X = Ys{subj,cond,4}(:,trl);
 cens = isnan(Yin) | isnan(Yout);
-Yin = Yin(~cens); Yout = Yout(~cens);
+Yin = Yin(~cens); Yout = Yout(~cens); X = X(~cens);
 
 %% helper functions 
 function T = eventBoundKNN(evs)

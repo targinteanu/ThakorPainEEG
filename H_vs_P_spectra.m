@@ -369,6 +369,12 @@ end
 [chansel, chanselName] = listdlg_selectWrapper({allchan.labels}, ...
     'multiple', 'Select Channels:');
 allchan0 = allchan; allchan = allchan(chansel);
+%%
+figure; 
+chansel2 = true(size(allchan0)); chansel2(chansel) = false;
+topoplot(zeros(size(allchan0)), allchan0, ...'electrodes', 'labels', ...
+    'emarker2', {[1,2,3,4,5], '*', 'k'}); %, ...
+%    'style', 'blank')
 %}
 
 

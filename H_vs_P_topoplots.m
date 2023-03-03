@@ -567,7 +567,7 @@ minstatval = -maxstatval;
 %% plot comparison 
 plot_vs_baseline = {'Heat Stimulus'};
 plot_P_vs_H      = {'Baseline'};
-flipRC = false;
+flipRC = true;
 
 W = 2*length(plot_vs_baseline) + length(plot_P_vs_H);
 fig = figure('Units', 'Normalized', 'Position', [0 0 1 1]); 
