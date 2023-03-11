@@ -273,12 +273,15 @@ saveas(fig(3), [svloc,'in-out'], 'fig');
 saveas(fig(4), [svloc,'IR'], 'fig');
 
 %% prep for sys iden 
-subj = 4; cond = 1; ch = 3; trl = 1;
-Yin = Ys{subj,cond,1}(:,ch,trl); Yout = Ys{subj,cond,2}(:,ch,trl);
+subj = 4; cond = 1; ch = 1; trl = 1;
+Yin = Ys{subj,cond,1}(:,:,trl); Yout = Ys{subj,cond,2}(:,:,trl);
+Ymean = mean(Yout, 2); Ystd = std(Yout, [], 2);
+Yin = Yin(:,ch); Yout = Yout(:,ch);
 Yh = Ys{subj,cond,3}(:,ch,trl);
 X = Ys{subj,cond,4}(:,trl);
 cens = isnan(Yin) | isnan(Yout);
 Yin = Yin(~cens); Yout = Yout(~cens); X = X(~cens);
+Ymean = Ymean(~cens); Ystd = Ystd(~cens);
 
 %% helper functions 
 function T = eventBoundKNN(evs)
