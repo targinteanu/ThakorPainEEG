@@ -9,6 +9,7 @@ plotOpts1D =   {'Peak Freq (Hz)', ...
                 'Trough Freq (Hz)', ...
                 'Band Mean Power (\muV^2 s^2)', ...
                 'Band Relative Power', ...
+                'Band Power Ratio', ...
                 'Node Degree', ...
                 'Connectivity Strength', ...
                 'Average Frequency Difference', ...
@@ -29,6 +30,7 @@ yname = [];
 % basic frequency function definition 
 meanAmp = @(w,P,band) mean(P(:, ( (w >= band(1))&(w <= band(2)) )), 2);
 relAmp = @(w,P,band) sum(P(:, ( (w >= band(1))&(w <= band(2)) )), 2) ./ sum(P,2);
+ratAmp = @(w,P,band1,band2) meanAmp(w,P,band1) ./ meanAmp(w,P,band2);
 basicFreqFcnOpts = {meanAmp, relAmp};
 
 
@@ -134,15 +136,24 @@ for idx = 1:length(PLOTSEL)
             'Trough Freq (Hz)', ...
             'Band Mean Power (\muV^2 s^2)', ...
             'Band Relative Power', ...
+            'Band Power Ratio', ...
             'Frequency Assortativity', ...
             'Average Frequency Difference', ...
             'WPLI ', ...
             'PLV ', ...
             'Frequency Difference'}) ) ) ...
             | nwFcn_needs_bnd
-        [bnd,bndname] = pickFrequency([plotSel,' (',num2str(idx),' of ',num2str(length(PLOTSEL)),')']);
-        yname = [yname,bndname,' ',plotSel];
-
+        if strcmp(plotSel, 'Band Power Ratio')
+            % 2 bands must be selected: 
+            [bnd1,bnd1name] = pickFrequency(['X/Y Power X (',num2str(idx),' of ',num2str(length(PLOTSEL)),')']);
+            [bnd2,bnd2name] = pickFrequency(['X/Y Power Y (',num2str(idx),' of ',num2str(length(PLOTSEL)),')']);
+            yname = [yname,bnd1name,'/',bnd2name,' ',plotSel];
+            bnd = {bnd1, bnd2};
+        else
+            % 1 band must be selected:
+            [bnd,bndname] = pickFrequency([plotSel,' (',num2str(idx),' of ',num2str(length(PLOTSEL)),')']);
+            yname = [yname,bndname,' ',plotSel];
+        end
         % network 
         if nwFcn_needs_bnd
             nwFcn = @(Spec,EEG) nwFcn(Spec,EEG, bnd);
@@ -169,6 +180,15 @@ for idx = 1:length(PLOTSEL)
         elseif strcmp(plotSel, 'Band Mean Power (\muV^2 s^2)')
             ylims = [];
         end
+
+    elseif strcmp(plotSel, 'Band Power Ratio')
+        for bIdx = 1:length(bnd)
+            if isa(bnd{bIdx}, 'char') | isa(bnd{bIdx}, 'string')
+                bnd{bIdx} = band2freqs(bnd, BandTableHz);
+            end
+        end
+        fcn{idx} = @(Spec, EEG) frqFcnEpoch(Spec, EEG, @(w,P) ratAmp(w,P,bnd{1},bnd{2}));
+        ylims = [];
 
     elseif strcmp(plotSel, 'Peak Freq (Hz)')
         % peak freq
