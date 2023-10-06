@@ -416,13 +416,12 @@ for s = 1:length(scanfiles)
         comboSubjTbl{s,c} = {cumuTY};
     end
 
-    comboSubjTbls{n} = comboSubjTbl;
-
     clear cumuTY cumuTYsubj dataTable ...
           EEG_all tY_trial tY ord
 
     clear dataTables cumuTYs
 end
+comboSubjTbls{n} = comboSubjTbl;
 % everything in comboSubj should be ordered according to somechan
 clear comboSubjTbl
 end

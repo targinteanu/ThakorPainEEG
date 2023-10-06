@@ -333,9 +333,13 @@ end
 %% channel selection 
 [chansel, chanselName, allchan0, allchan] = ChannelSelector(scanfiles, DATATABLES);
 
+DATATABLES_chansel = [];
+% NEED TO REMAKE DATATABLES_chansel TO FIX EXPORT AS MAT FILE
+% see commit "correctly saves table with patients as rows"
+
 %% combination "subjects" 
-comboSubj = cell(2, length(scanfiles));
-DATATABLES_chansel = DATATABLES;
+varnames = DATATABLES{1}{1,1}.Properties.VariableNames;
+comboSubjTbls = cell(1, nMeas);
 
 somechan = true(size(allchan));
 for s = 1:length(scanfiles)
@@ -355,7 +359,9 @@ somechan = allchan(somechan);
 % somechan = only those selected AND in all EEGs of all subjects of all groups
 
 % for n = 1:nMeas [see H_vs_P_topoplots]
-% comboSubjTbl = ... 
+comboSubjTbl = table('size',[length(scanfileNames),length(varnames)], ...
+                     'VariableTypes',repmat("cell",size(varnames)), ...
+                     'VariableNames',varnames,'RowNames',scanfileNames);
 
 for s = 1:length(scanfiles)
 
@@ -377,35 +383,32 @@ for s = 1:length(scanfiles)
                     ord(ch) = find( ...
                         strcmpi(somechan(ch).labels, {EEG_all.chanlocs.labels}) );
                 end
-                tY = tY(:,ord,:);
-                cumuTY = cat(1, cumuTY, tY);
-                tY_trial{trl} = tY;
+                cumuTY = cat(1, cumuTY, tY(:,ord,:)); % all trials concatenated 
             end
-            % differs from here when ComboSubjTbl used 
-            cumuTYsubj{c} = cumuTY;
-            dataTable{4,c} = {tY_trial};
+            cumuTYsubj{c} = cumuTY;  % diff stimuli within one subj
         end
-        cumuTYs = [cumuTYs; cumuTYsubj];
-        dataTables{subj} = dataTable;
+        cumuTYs = [cumuTYs; cumuTYsubj]; % #subjs x #stimtypes
     end
 
-    cumuTYsubj = cell(1, size(cumuTYs,2));
+    % concat all subjs (collapse cumuTYs vertically)
     for c = 1:size(cumuTYs,2)
         cumuTY = [];
         for subj = 1:size(cumuTYs,1)
             cumuTY = cat(1, cumuTY, cumuTYs{subj, c});
         end
-        cumuTYsubj{c} = cumuTY;
+        comboSubjTbl{s,c} = {cumuTY};
     end
-
-    comboSubj{1, s} = cumuTYsubj; comboSubj{2, s} = somechan;
-    DATATABLES_chansel{s} = dataTables;
+    
     clear cumuTY cumuTYs cumuTYsubj somechan dataTable dataTables ...
           EEG_all tY_trial tY ord 
 end
+% comboSubjTbls{n} ... 
+% end [nMeas]
 
 %% plots
-%{
+% NEED TO REPLACE comboSubj WITH comboSubjTbl !!!
+% see commit "correctly saves table with patients as rows"
+%%{
 maxplt = -inf(size(chansel)); minplt = inf(size(chansel));
 
 %clr = {'b', 'r', 'k', 'm', 'c', 'g', 'y'};
@@ -522,6 +525,9 @@ saveas(fig, [svloc,yname,' AllTrialsPlot'], 'fig');
 
 %}
 %% export baseline stat as mat file 
+% used for correlation plot? 
+% MAKE NEW SCRIPT?
+
 pnames = scanfiles; 
 for s = 1:length(scanfiles)
     sf = scanfiles{s};
