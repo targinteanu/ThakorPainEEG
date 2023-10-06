@@ -330,55 +330,7 @@ for DT = 1:length(DATATABLES)
 end
 
 %% channel selection 
-% get all channel names of all EEGs 
-allchan = [];
-for s = 1:length(scanfiles)
-    sf = scanfiles{s};
-    dataTables = DATATABLES{s};
-    for subj = 1:length(sf)
-        dataTable = dataTables{subj};
-        for c = 1:width(dataTable)
-            EEG = dataTable{1,c}{1};
-            allchan = [allchan, EEG.chanlocs];
-        end
-    end
-end
-clear sf dataTable dataTables EEG
-
-% eliminate repeats (case insensitive) 
-[~,idx] = unique(upper({allchan.labels})); 
-allchan = allchan(idx);
-
-% only include chans common to all EEGs 
-idx = true(size(allchan));
-for s = 1:length(scanfiles)
-    sf = scanfiles{s};
-    dataTables = DATATABLES{s};
-    for subj = 1:length(sf)
-        dataTable = dataTables{subj};
-        for c = 1:width(dataTable)
-            EEG = dataTable{1,c}{1};
-            for ch = 1:length(allchan)
-                idx(ch) = idx(ch) & ...
-                    sum( strcmpi(allchan(ch).labels, {EEG.chanlocs.labels}) );
-            end
-        end
-    end
-end
-allchan = allchan(idx);
-clear sf dataTable dataTables EEG idx
-
-% select desired chans 
-figure; hold on;
-for chan = allchan
-    plot3(chan.X, chan.Y, chan.Z, '.', ...
-        'Color', chanColor(chan, allchan));
-    text(chan.X, chan.Y, chan.Z, chan.labels, ...
-        'Color', chanColor(chan, allchan));
-end
-[chansel, chanselName] = listdlg_selectWrapper({allchan.labels}, ...
-    'multiple', 'Select Channels:');
-allchan0 = allchan; allchan = allchan(chansel);
+[chansel, chanselName, allchan0, allchan] = ChannelSelector(scanfiles, DATATABLES);
 
 %% combination "subjects" 
 comboSubj = cell(2, length(scanfiles));
