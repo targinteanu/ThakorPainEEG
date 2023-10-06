@@ -59,18 +59,18 @@ for s = 1:length(scanfiles)
         tempArr = [tempArr1{:} tempArr2{:}];
         tempTbl.TempStim('EEG_all') = {tempArr}; 
         tempArr1 = Epoch_table.TempStim('before experiment'); tempArr2 = Epoch_table.TempStim('after experiment');
-        curEpoc = ArrCat(tempArr1{:}, tempArr2{:});
+        curEpoc = {ArrCat(tempArr1{:}, tempArr2{:})};
         tempArr1 = EpochSpec_table.TempStim('before experiment'); tempArr2 = EpochSpec_table.TempStim('after experiment');
-        curSpec = ArrCat(tempArr1{:}, tempArr2{:});
+        curSpec = {ArrCat(tempArr1{:}, tempArr2{:})};
         tempTbl.TempStim('Epocs') = curEpoc; tempTbl.TempStim('Specs') = curSpec;
 
         tempArr1 = EEG_table.PinPrick('before experiment'); tempArr2 = EEG_table.PinPrick('after experiment');
         tempArr = [tempArr1{:} tempArr2{:}];
         tempTbl.PinPrick('EEG_all') = {tempArr}; 
         tempArr1 = Epoch_table.PinPrick('before experiment'); tempArr2 = Epoch_table.PinPrick('after experiment');
-        curEpoc = ArrCat(tempArr1{:}, tempArr2{:});
+        curEpoc = {ArrCat(tempArr1{:}, tempArr2{:})};
         tempArr1 = EpochSpec_table.PinPrick('before experiment'); tempArr2 = EpochSpec_table.PinPrick('after experiment');
-        curSpec = ArrCat(tempArr1{:}, tempArr2{:});
+        curSpec = {ArrCat(tempArr1{:}, tempArr2{:})};
         tempTbl.PinPrick('Epocs') = curEpoc; tempTbl.PinPrick('Specs') = curSpec; 
 
         dataTables{subj} = tempTbl;
@@ -498,7 +498,6 @@ function outArr = ArrCat(Arr1, Arr2)
     else
         outArr = [Arr1, Arr2];
     end
-    outArr = {outArr};
 end
 
 function subtbl = makeSubtbl(tbl, vars)

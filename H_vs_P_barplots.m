@@ -47,6 +47,7 @@ for s = 1:length(scanfiles)
 
         % run calculations on desired variables
         disp('calculating desired variables')
+        % construct data tables *************
         tempTbl = table('RowNames',{'EEG_all','EEG_trial','tY_all','tY_trial'});
 
         tempArr = EEG_table.BaselineOpen('before experiment');
@@ -336,12 +337,11 @@ end
 comboSubj = cell(2, length(scanfiles));
 DATATABLES_chansel = DATATABLES;
 
+somechan = true(size(allchan));
 for s = 1:length(scanfiles)
-
-    somechan = true(size(allchan));
     dataTables = DATATABLES{s};
-    for subj = 1:length(dataTables)
-        dataTable = dataTables{subj};
+    for subj = 1:size(dataTables,1)
+        dataTable = dataTables{subj,1};
         for c = 1:width(dataTable)
             EEG_all = dataTable{1,c}{1};
             for ch = 1:length(somechan)
@@ -350,11 +350,21 @@ for s = 1:length(scanfiles)
             end
         end
     end
+end
+somechan = allchan(somechan);
+% somechan = only those selected AND in all EEGs of all subjects of all groups
 
-    somechan = allchan(somechan);
+% for n = 1:nMeas [see H_vs_P_topoplots]
+% comboSubjTbl = ... 
+
+for s = 1:length(scanfiles)
+
+    dataTables = DATATABLES{s};
     cumuTYs = {};
-    for subj = 1:length(dataTables)
-        dataTable = dataTables{subj};
+
+    for subj = 1:size(dataTables,1)
+
+        dataTable = dataTables{subj}; % {subj,n for nMeas}
         cumuTYsubj = cell(1, width(dataTable));
         for c = 1:width(dataTable)
             EEG_all  = dataTable{1,c}{1};
@@ -371,6 +381,7 @@ for s = 1:length(scanfiles)
                 cumuTY = cat(1, cumuTY, tY);
                 tY_trial{trl} = tY;
             end
+            % differs from here when ComboSubjTbl used 
             cumuTYsubj{c} = cumuTY;
             dataTable{4,c} = {tY_trial};
         end
