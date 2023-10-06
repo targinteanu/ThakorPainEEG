@@ -7,7 +7,7 @@ subfoldersof = @(d) d([d.isdir] & ...
     ~strcmp({d.name}, '.') & ...
     ~strcmp({d.name}, '..'));
 
-home = '/Users/torenarginteanu/Documents/MATLAB/ThakorPainEEG/Data_Chronic Pain';
+home = 'C:\Users\targi\Desktop\Thakor Chronic Pain Data\Data_Chronic Pain';
 cd(home)
 datafolders = dir;
 datafolders = subfoldersof(datafolders);
@@ -25,11 +25,11 @@ while ~ok
 end
 datafolders = datafolders(sel);
 
-addpath '/Users/torenarginteanu/Documents/MATLAB/ThakorPainEEG/';
+addpath 'C:\Users\targi\Documents\MATLAB\ThakorPainEEG';
 svloc = [home,'/Preprocessed ',datestr(datetime, 'yyyy-mm-dd HH.MM.SS')];
 
 %% Start eeglab
-eeglabpath = '/Applications/MATLAB_R2021b.app/toolbox/eeglab2022.0';
+eeglabpath = 'C:\Program Files\MATLAB\R2022a\eeglab2023.0';
 addpath(eeglabpath)
 eeglab
 
