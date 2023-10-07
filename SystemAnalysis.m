@@ -187,31 +187,6 @@ title('p');
 
 %% helper functions
 
-function [sel, listOut] = listdlg_selectWrapper(list, SelectionMode, PromptString)
-    if nargin < 3
-        PromptString = [];
-        if nargin < 2
-            SelectionMode = 'multiple';
-        end
-    end
-
-    [sel, ok] = listdlg('ListString',list, 'SelectionMode',SelectionMode, 'PromptString',PromptString);
-    while ~ok
-        if strcmp(SelectionMode,'multiple')
-            sel = questdlg('select all?');
-            ok = strcmp(sel, 'Yes');
-            if ~ok
-                [sel, ok] = listdlg('ListString',list, 'SelectionMode',SelectionMode, 'PromptString',PromptString);
-            else
-                sel = 1:length(list);
-            end
-        else
-            [sel, ok] = listdlg('ListString',list, 'SelectionMode',SelectionMode, 'PromptString',PromptString);
-        end
-    end
-    listOut = list(sel);
-end
-
 function T = eventBoundTimes(evs)
     intvl = diff([evs.init_time]); 
     intvlFromPrev = [inf, intvl]; intvlToNext = [intvl, inf];
@@ -252,21 +227,4 @@ function T = eventBoundTimes(evs)
     end
 
     T = [ev0; evStart; evEnd]; T = T';
-end
-
-function rgb = chanColor(chloc, chlocs)
-    if isempty(chloc.X)
-        chloc.X = 0;
-    end
-    if isempty(chloc.Y)
-        chloc.Y = 0;
-    end
-    if isempty(chloc.Z)
-        chloc.Z = 0;
-    end
-    allXYZ = [chlocs.X; chlocs.Y; chlocs.Z]';
-    chXYZ  = [chloc.X;  chloc.Y;  chloc.Z ]';
-    chXYZ = chXYZ - min(allXYZ);
-    allXYZ = allXYZ - min(allXYZ);
-    rgb = chXYZ./max(allXYZ);
 end

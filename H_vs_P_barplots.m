@@ -686,81 +686,9 @@ function subtbl = makeSubtbl(tbl, vars)
     subtbl = tbl(:, ismember(tbl.Properties.VariableNames, vars));
 end
 
-function rgb = chanColor(chloc, chlocs)
-    if isempty(chloc.X)
-        chloc.X = 0;
-    end
-    if isempty(chloc.Y)
-        chloc.Y = 0;
-    end
-    if isempty(chloc.Z)
-        chloc.Z = 0;
-    end
-    allXYZ = [chlocs.X; chlocs.Y; chlocs.Z]';
-    chXYZ  = [chloc.X;  chloc.Y;  chloc.Z ]';
-    chXYZ = chXYZ - min(allXYZ);
-    allXYZ = allXYZ - min(allXYZ);
-    rgb = chXYZ./max(allXYZ);
-end
-
 function plotPval(p, x1, x2, y)
     x = mean([x1, x2]); xbar = abs(x2-x1)./2;
     errorbar(x,y,0,0,xbar,xbar, 'k', 'LineWidth',1);
     text(x,y, ['p = ',num2str(p,1)], 'FontSize',8, 'FontWeight','bold', ...
         'HorizontalAlignment','center', 'VerticalAlignment','bottom');
-end
-
-function [sel, listOut] = listdlg_selectWrapper(list, SelectionMode, PromptString)
-    if nargin < 3
-        PromptString = [];
-        if nargin < 2
-            SelectionMode = 'multiple';
-        end
-    end
-
-    [sel, ok] = listdlg('ListString',list, 'SelectionMode',SelectionMode, 'PromptString',PromptString);
-    while ~ok
-        if strcmp(SelectionMode,'multiple')
-            sel = questdlg('select all?');
-            ok = strcmp(sel, 'Yes');
-            if ~ok
-                [sel, ok] = listdlg('ListString',list, 'SelectionMode',SelectionMode, 'PromptString',PromptString);
-            else
-                sel = 1:length(list);
-            end
-        else
-            [sel, ok] = listdlg('ListString',list, 'SelectionMode',SelectionMode, 'PromptString',PromptString);
-        end
-    end
-    listOut = list(sel);
-end
-
-function outEEG = extractBetweenTimes(inEEG, bound)
-    buf = .5; % s
-    bound(1) = max(inEEG.xmin, bound(1)-buf);
-    bound(2) = min(inEEG.xmax, bound(2)+buf);
-    outEEG = pop_select(inEEG, 'time', bound);
-end
-
-function [tblOut, eegTbl, epochTbl, epochSpecTbl] = ...
-    fcnTbl(eegTbl, epochTbl, epochSpecTbl, fcn, vars)
-    if nargin > 4
-        eegTbl       = makeSubtbl(eegTbl,       vars);
-        epochTbl     = makeSubtbl(epochTbl,     vars);
-        epochSpecTbl = makeSubtbl(epochSpecTbl, vars);
-    end
-    
-    tblOut = epochTbl; 
-    W = height(epochTbl); H = width(epochTbl); 
-    for c = 1:H
-        for r = 1:W
-            curSpec = epochSpecTbl{r,c}{:};
-            curEpoc = epochTbl{r,c}{:};
-            if ~isempty(curEpoc)
-                [Y,t] = fcn(curSpec, curEpoc);
-                tblOut{r,c} = {cat(3,t,Y)};
-                eegTbl{r,c} = {eegTbl{r,c}{1}(1)};
-            end
-        end
-    end
 end

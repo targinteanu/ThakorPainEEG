@@ -504,56 +504,6 @@ function subtbl = makeSubtbl(tbl, vars)
     subtbl = tbl(:, ismember(tbl.Properties.VariableNames, vars));
 end
 
-function rgb = chanColor(chloc, chlocs)
-    if isempty(chloc.X)
-        chloc.X = 0;
-    end
-    if isempty(chloc.Y)
-        chloc.Y = 0;
-    end
-    if isempty(chloc.Z)
-        chloc.Z = 0;
-    end
-    allXYZ = [chlocs.X; chlocs.Y; chlocs.Z]';
-    chXYZ  = [chloc.X;  chloc.Y;  chloc.Z ]';
-    chXYZ = chXYZ - min(allXYZ);
-    allXYZ = allXYZ - min(allXYZ);
-    rgb = chXYZ./max(allXYZ);
-    rgb = .7 * rgb;
-end
-
-function [sel, listOut] = listdlg_selectWrapper(list, SelectionMode, PromptString)
-    if nargin < 3
-        PromptString = [];
-        if nargin < 2
-            SelectionMode = 'multiple';
-        end
-    end
-
-    [sel, ok] = listdlg('ListString',list, 'SelectionMode',SelectionMode, 'PromptString',PromptString);
-    while ~ok
-        if strcmp(SelectionMode,'multiple')
-            sel = questdlg('select all?');
-            ok = strcmp(sel, 'Yes');
-            if ~ok
-                [sel, ok] = listdlg('ListString',list, 'SelectionMode',SelectionMode, 'PromptString',PromptString);
-            else
-                sel = 1:length(list);
-            end
-        else
-            [sel, ok] = listdlg('ListString',list, 'SelectionMode',SelectionMode, 'PromptString',PromptString);
-        end
-    end
-    listOut = list(sel);
-end
-
-function outEEG = extractBetweenTimes(inEEG, bound)
-    buf = .5; % s
-    bound(1) = max(inEEG.xmin, bound(1)-buf);
-    bound(2) = min(inEEG.xmax, bound(2)+buf);
-    outEEG = pop_select(inEEG, 'time', bound);
-end
-
 function [tblOut, eegTbl, epochTbl, epochSpecTbl] = ...
     fcnTbl(eegTbl, epochTbl, epochSpecTbl, fcn, vars)
     if nargin > 4
