@@ -1,3 +1,5 @@
+% TO REMOVE: does not use established methods for system ID 
+
 %% Start eeglab
 clear
 eeglabpath = '/Applications/MATLAB_R2021b.app/toolbox/eeglab2022.0';

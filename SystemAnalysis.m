@@ -1,3 +1,5 @@
+% TO REMOVE: early test script that only used 1 subject and 1 control 
+
 %% Start eeglab
 clear
 eeglabpath = '/Applications/MATLAB_R2021b.app/toolbox/eeglab2022.0';
