@@ -184,23 +184,17 @@ for subj = 1:size(datafolders,1)
 
             % PRESSURE ---------------------------------------------------
 
-            % pressure: 4 (to 5) !!!!!!!!!!!!!!!!!!!! 
-            % doesn't actually end at 5; goes onto next type 
+            % pressure: 4 (to 5)  
                 startEv = EEG.event(eventType == 4); 
-                excludeTypes = [-1, 4, 5, 9, 12:15];
-                toExclude = arrayfun(@(e) sum(e.type == excludeTypes), EEG.event) ;
-                endEv = EEG.event(~toExclude);
+                endEv = EEG.event(eventType == 5); 
                 pressEv = matchStartEndEvs(startEv, endEv);
                 % designate before/after ice experiment 
                 splitTypes = [6, 7, 8:10, 12, 13];
                 [pressEvInit, pressEvFin] = splitBeforeAfter(pressEv, splitTypes);
 
-            % CPM pressure: 8 (to 9) !!!!!!!!!!!!!!!!!!!! 
-            % doesn't actually end at 9; goes onto next type 
+            % CPM pressure: 8 (to 9)  
                 startEv = EEG.event(eventType == 8); 
-                excludeTypes = [-1, 8, 5, 9, 12:15];
-                toExclude = arrayfun(@(e) sum(e.type == excludeTypes), EEG.event) ;
-                endEv = EEG.event(~toExclude);
+                endEv = EEG.event(eventType == 9); 
                 pressCpmEv = matchStartEndEvs(startEv, endEv);
                 % select only those within iceEv????
 
