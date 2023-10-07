@@ -39,7 +39,7 @@ for subj = 1:size(scanfiles,1)
     fn = scanfiles(subj,1).name
     load(fn);
 
-    %EEG_table = makeSubtbl(EEG_table, {'PinPrick', 'BaselineOpen'});
+    EEG_table = makeSubtbl(EEG_table, {'PinPrick', 'BaselineOpen'});
 
     % order by longest duration 
     %%{
@@ -77,7 +77,7 @@ for subj = 1:size(scanfiles,1)
     clear cur curSpecs
     %}
 
-    % segment time series into 5s epochs 
+    % segment time series into _s epochs 
     % (table of vectors where first element is original EEG and subsequent
     % are EEG epochs)
     %%{

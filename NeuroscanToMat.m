@@ -7,7 +7,8 @@ subfoldersof = @(d) d([d.isdir] & ...
     ~strcmp({d.name}, '.') & ...
     ~strcmp({d.name}, '..'));
 
-home = 'C:\Users\targi\Desktop\Thakor Chronic Pain Data\Data_Chronic Pain';
+%home = 'C:\Users\targi\Desktop\Thakor Chronic Pain Data\Data_Chronic Pain';
+home = '/Users/torenarginteanu/Documents/MATLAB/ThakorPainEEG';
 cd(home)
 datafolders = dir;
 datafolders = subfoldersof(datafolders);
@@ -25,8 +26,9 @@ while ~ok
 end
 datafolders = datafolders(sel);
 
-addpath 'C:\Users\targi\Documents\MATLAB\ThakorPainEEG';
-svloc = [home,'/Preprocessed ',datestr(datetime, 'yyyy-mm-dd HH.MM.SS')];
+%addpath 'C:\Users\targi\Documents\MATLAB\ThakorPainEEG';
+addpath = '/Users/torenarginteanu/Documents/MATLAB/ThakorPainEEG';
+%svloc = [home,'/Preprocessed ',datestr(datetime, 'yyyy-mm-dd HH.MM.SS')];
 
 %% Start eeglab
 eeglabpath = 'C:\Program Files\MATLAB\R2022a\eeglab2023.0';
@@ -34,7 +36,7 @@ addpath(eeglabpath)
 eeglab
 
 %% Preprocessing in EEGLAB ---------------------------------------------
-mkdir(svloc);
+%mkdir(svloc);
 
 for subj = 1:size(datafolders,1)
     cd(home)
@@ -80,8 +82,8 @@ for subj = 1:size(datafolders,1)
             EEG = pop_importev2(EEG, eventsets(d2,1).name);
 
             %%
-            cd(svloc);
-            temp_file = [id,' -- preprocessed.mat'];
+            %cd(svloc);
+            temp_file = [id,'.mat'];
             save(temp_file, 'EEG'); 
             
         end
