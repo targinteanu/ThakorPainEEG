@@ -42,7 +42,6 @@ for subj = 1:size(datafolders,1)
     cd(datafolders(subj,1).name);
 
         clearvars datasets eventsets
-        %datasets = dir('*.cnt');
         datasets = dir('*.mat');
         N = size(datasets,1);
 
@@ -57,7 +56,6 @@ for subj = 1:size(datafolders,1)
             id = [datafolders(subj,1).name,' --- ',datasets(d2,1).name];
 
             % import EEG and EV2
-            %EEG = pop_loadeep_v4(datasets(d2,1).name);
             load(datasets(d2,1).name);
             EEG = eeg_checkset( EEG );
             EEG = pop_chanedit(EEG, 'lookup', [eeglabpath,'/plugins/dipfit/standard_BEM/elec/standard_1005.elc']);
