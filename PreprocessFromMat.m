@@ -7,7 +7,8 @@ subfoldersof = @(d) d([d.isdir] & ...
     ~strcmp({d.name}, '.') & ...
     ~strcmp({d.name}, '..'));
 
-home = 'C:\Users\targi\Desktop\Thakor Chronic Pain Data\Data_Chronic Pain';
+%home = 'C:\Users\targi\Desktop\Thakor Chronic Pain Data\Data_Chronic Pain';
+home = '/Users/torenarginteanu/Documents/MATLAB/ThakorPainEEG';
 cd(home)
 datafolders = dir;
 datafolders = subfoldersof(datafolders);
@@ -25,7 +26,8 @@ while ~ok
 end
 datafolders = datafolders(sel);
 
-addpath 'C:\Users\targi\Documents\MATLAB\ThakorPainEEG';
+%addpath 'C:\Users\targi\Documents\MATLAB\ThakorPainEEG';
+addpath = '/Users/torenarginteanu/Documents/MATLAB/ThakorPainEEG';
 svloc = [home,'/Preprocessed ',datestr(datetime, 'yyyy-mm-dd HH.MM.SS')];
 
 %% Start eeglab
@@ -126,245 +128,83 @@ for subj = 1:size(datafolders,1)
             %}
 
 
-            % extract desired events --------------------------
+            % ================ EXTRACT DESIRED EVENTS ====================
             eventType = [EEG.event.type]; eventTime = [EEG.event.init_time];
 
-            % baseline eyes open: 0 to 1
+            % BASELINE ---------------------------------------------------
+            
+            % eyes open: 0 to 1
                 startEv = EEG.event(eventType == 0); endEv = EEG.event(eventType == 1);
-                % order by time 
-                if length(startEv) > 1
-                    [~,ord] = sort([startEv.init_time]); startEv = startEv(ord);
-                end
-                if length(endEv) > 1
-                    [~,ord] = sort([endEv.init_time]); endEv = endEv(ord);
-                end
-                % match start/end 
-                openEv = [];
-                for startEv_ = startEv
-                    endEvOpts = endEv([endEv.init_time] >= startEv_.init_time);
-                    if ~isempty(endEvOpts)
-                        [~, endEv_] = min([endEvOpts.init_time] - startEv_.init_time);
-                        endEv_ = endEvOpts(endEv_);
-                        openEv = [openEv; startEv_, endEv_];
-                    end
-                end
-                % handle events between start/end 
-                excludeTypes = 1:13;
-                toExclude = false(size(openEv,1),1);
-                for idx = 1:size(openEv,1)
-                    evBetween = EEG.event( ...
-                        (eventTime > openEv(idx,1).init_time ) & ...
-                        (eventTime < openEv(idx,2).init_time) );
-                    toExclude(idx) = sum( arrayfun(@(e) sum(e.type == excludeTypes), evBetween) );
-                end
-                openEv = openEv(~toExclude,:);
-                % designate before/after experiment 
-                excludeTypes = 3:13;
-                toExclude = false(size(openEv,1),1);
-                for idx = 1:size(openEv,1)
-                    evBetween = EEG.event( ...
-                        (eventTime < openEv(idx,1).init_time ) );
-                    toExclude(idx) = sum( arrayfun(@(e) sum(e.type == excludeTypes), evBetween) );
-                end
-                openEvInit = openEv(~toExclude,:); openEvFin = openEv(toExclude,:);
+                excludeTypes = 1:13; % exclude baseline if any of these is found between start/end
+                splitTypes = 3:13; % END if any of these is found before baseline start
+                [openEv, openEvInit, openEvFin] = getBaselineEvs(startEv, endEv, excludeTypes, splitTypes);
 
             % baseline eyes closed: 1 to 2
                 startEv = EEG.event(eventType == 1); endEv = EEG.event(eventType == 2);
-                % order by time 
-                if length(startEv) > 1
-                    [~,ord] = sort([startEv.init_time]); startEv = startEv(ord);
-                end
-                if length(endEv) > 1
-                    [~,ord] = sort([endEv.init_time]); endEv = endEv(ord);
-                end
-                % match start/end 
-                closedEv = [];
-                for startEv_ = startEv
-                    endEvOpts = endEv([endEv.init_time] >= startEv_.init_time);
-                    if ~isempty(endEvOpts)
-                        [~, endEv_] = min([endEvOpts.init_time] - startEv_.init_time);
-                        endEv_ = endEvOpts(endEv_);
-                        closedEv = [closedEv; startEv_, endEv_];
-                    end
-                end
-                % handle events between start/end 
-                excludeTypes = [0, 2:13];
-                toExclude = false(size(closedEv,1),1);
-                for idx = 1:size(closedEv,1)
-                    evBetween = EEG.event( ...
-                        (eventTime > closedEv(idx,1).init_time ) & ...
-                        (eventTime < closedEv(idx,2).init_time) );
-                    toExclude(idx) = sum( arrayfun(@(e) sum(e.type == excludeTypes), evBetween) );
-                end
-                closedEv = closedEv(~toExclude,:);
-                % designate before/after experiment 
-                excludeTypes = 3:13;
-                toExclude = false(size(closedEv,1),1);
-                for idx = 1:size(closedEv,1)
-                    evBetween = EEG.event( ...
-                        (eventTime < closedEv(idx,1).init_time ) );
-                    toExclude(idx) = sum( arrayfun(@(e) sum(e.type == excludeTypes), evBetween) );
-                end
-                closedEvInit = closedEv(~toExclude,:); closedEvFin = closedEv(toExclude,:);
+                excludeTypes = [0, 2:13]; % exclude baseline if any of these is found between start/end 
+                splitTypes = 3:13; % END if any of these is found before baseline start
+                [closedEv, closedEvInit, closedEvFin] = getBaselineEvs(startEv, endEv, excludeTypes, splitTypes);
 
             % hand in ice: 6 to 7
                 startEv = EEG.event(eventType == 6); endEv = EEG.event(eventType == 7);
-                % order by time 
-                if length(startEv) > 1
-                    [~,ord] = sort([startEv.init_time]); startEv = startEv(ord);
-                end
-                if length(endEv) > 1
-                    [~,ord] = sort([endEv.init_time]); endEv = endEv(ord);
-                end
-                % match start/end 
-                iceEv = [];
-                for startEv_ = startEv
-                    endEvOpts = endEv([endEv.init_time] >= startEv_.init_time);
-                    if ~isempty(endEvOpts)
-                        [~, endEv_] = min([endEvOpts.init_time] - startEv_.init_time);
-                        endEv_ = endEvOpts(endEv_);
-                        iceEv = [iceEv; startEv_, endEv_];
-                    end
-                end
-                % handle events between start/end 
-                excludeTypes = [6, 7];
-                toExclude = false(size(iceEv,1),1);
-                for idx = 1:size(iceEv,1)
-                    evBetween = EEG.event( ...
-                        (eventTime > iceEv(idx,1).init_time ) & ...
-                        (eventTime < iceEv(idx,2).init_time) );
-                    toExclude(idx) = sum( arrayfun(@(e) sum(e.type == excludeTypes), evBetween) );
-                end
-                iceEv = iceEv(~toExclude,:);
+                excludeTypes = [6, 7]; % exclude baseline if any of these is found between start/end
+                iceEv = getBaselineEvs(startEv, endEv, excludeTypes, []);
 
-            % temp stim: 3
+            % TEMP STIM --------------------------------------------------
+
+            % temp stim: 3 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 startEv = EEG.event(eventType == 3); 
-                excludeTypes = [-1, 3, 5, 9, 12:15];
+                excludeTypes = [-1, 3, 5, 9, 12:15]; % these types DO NOT end interval !!!
                 toExclude = arrayfun(@(e) sum(e.type == excludeTypes), EEG.event) ;
                 endEv = EEG.event(~toExclude);
-                % order by time 
-                if length(startEv) > 1
-                    [~,ord] = sort([startEv.init_time]); startEv = startEv(ord);
-                end
-                % match start/end 
-                tempEv = [];
-                for startEv_ = startEv
-                    endEvOpts = endEv([endEv.init_time] >= startEv_.init_time);
-                    if ~isempty(endEvOpts)
-                        [~, endEv_] = min([endEvOpts.init_time] - startEv_.init_time);
-                        endEv_ = endEvOpts(endEv_);
-                        tempEv = [tempEv; startEv_, endEv_];
-                    end
-                end
+                tempEv = matchStartEndEvs(startEv, endEv);
                 % designate before/after ice experiment 
-                excludeTypes = [6, 7, 8:10, 12, 13];
-                toExclude = false(size(tempEv,1),1);
-                for idx = 1:size(tempEv,1)
-                    evBetween = EEG.event( ...
-                        (eventTime < tempEv(idx,1).init_time ) );
-                    toExclude(idx) = sum( arrayfun(@(e) sum(e.type == excludeTypes), evBetween) );
-                end
-                tempEvInit = tempEv(~toExclude,:); tempEvFin = tempEv(toExclude,:);
+                splitTypes = [6, 7, 8:10, 12, 13];
+                [tempEvInit, tempEvFin] = splitBeforeAfter(tempEv, splitTypes);
 
-            % pin prick: 11
+            % PIN PRICK --------------------------------------------------
+
+            % pin prick: 11 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 startEv = EEG.event(eventType == 11); 
-                excludeTypes = [-1, 11, 5, 9, 12:15];
+                excludeTypes = [-1, 11, 5, 9, 12:15]; % these types DO NOT end interval !!!
                 toExclude = arrayfun(@(e) sum(e.type == excludeTypes), EEG.event) ;
                 endEv = EEG.event(~toExclude);
-                % order by time 
-                if length(startEv) > 1
-                    [~,ord] = sort([startEv.init_time]); startEv = startEv(ord);
-                end
-                % match start/end 
-                prickEv = [];
-                for startEv_ = startEv
-                    endEvOpts = endEv([endEv.init_time] >= startEv_.init_time);
-                    if ~isempty(endEvOpts)
-                        [~, endEv_] = min([endEvOpts.init_time] - startEv_.init_time);
-                        endEv_ = endEvOpts(endEv_);
-                        prickEv = [prickEv; startEv_, endEv_];
-                    end
-                end
+                prickEv = matchStartEndEvs(startEv, endEv);
                 % designate before/after ice experiment 
-                excludeTypes = [6, 7, 8:10, 12, 13];
-                toExclude = false(size(prickEv,1),1);
-                for idx = 1:size(prickEv,1)
-                    evBetween = EEG.event( ...
-                        (eventTime < prickEv(idx,1).init_time ) );
-                    toExclude(idx) = sum( arrayfun(@(e) sum(e.type == excludeTypes), evBetween) );
-                end
-                prickEvInit = prickEv(~toExclude,:); prickEvFin = prickEv(toExclude,:);
+                splitTypes = [6, 7, 8:10, 12, 13];
+                [prickEvInit, prickEvFin] = splitBeforeAfter(prickEv, splitTypes);
 
-            % CPM pin prick: 10
+            % CPM pin prick: 10 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 startEv = EEG.event(eventType == 10); 
-                excludeTypes = [-1, 10, 5, 9, 12:15];
+                excludeTypes = [-1, 10, 5, 9, 12:15]; % these types DO NOT end interval !!!
                 toExclude = arrayfun(@(e) sum(e.type == excludeTypes), EEG.event) ;
                 endEv = EEG.event(~toExclude);
-                % order by time 
-                if length(startEv) > 1
-                    [~,ord] = sort([startEv.init_time]); startEv = startEv(ord);
-                end
-                % match start/end 
-                prickCpmEv = [];
-                for startEv_ = startEv
-                    endEvOpts = endEv([endEv.init_time] >= startEv_.init_time);
-                    if ~isempty(endEvOpts)
-                        [~, endEv_] = min([endEvOpts.init_time] - startEv_.init_time);
-                        endEv_ = endEvOpts(endEv_);
-                        prickCpmEv = [prickCpmEv; startEv_, endEv_];
-                    end
-                end
+                prickCpmEv = matchStartEndEvs(startEv, endEv);
                 % select only those within iceEv????
 
-            % pressure: 4 (to 5)
+            % PRESSURE ---------------------------------------------------
+
+            % pressure: 4 (to 5) !!!!!!!!!!!!!!!!!!!! 
+            % doesn't actually end at 5; goes onto next type 
                 startEv = EEG.event(eventType == 4); 
                 excludeTypes = [-1, 4, 5, 9, 12:15];
                 toExclude = arrayfun(@(e) sum(e.type == excludeTypes), EEG.event) ;
                 endEv = EEG.event(~toExclude);
-                % order by time 
-                if length(startEv) > 1
-                    [~,ord] = sort([startEv.init_time]); startEv = startEv(ord);
-                end
-                % match start/end 
-                pressEv = [];
-                for startEv_ = startEv
-                    endEvOpts = endEv([endEv.init_time] >= startEv_.init_time);
-                    if ~isempty(endEvOpts)
-                        [~, endEv_] = min([endEvOpts.init_time] - startEv_.init_time);
-                        endEv_ = endEvOpts(endEv_);
-                        pressEv = [pressEv; startEv_, endEv_];
-                    end
-                end
+                pressEv = matchStartEndEvs(startEv, endEv);
                 % designate before/after ice experiment 
-                excludeTypes = [6, 7, 8:10, 12, 13];
-                toExclude = false(size(pressEv,1),1);
-                for idx = 1:size(pressEv,1)
-                    evBetween = EEG.event( ...
-                        (eventTime < pressEv(idx,1).init_time ) );
-                    toExclude(idx) = sum( arrayfun(@(e) sum(e.type == excludeTypes), evBetween) );
-                end
-                pressEvInit = pressEv(~toExclude,:); pressEvFin = pressEv(toExclude,:);
+                splitTypes = [6, 7, 8:10, 12, 13];
+                [pressEvInit, pressEvFin] = splitBeforeAfter(pressEv, splitTypes);
 
-            % CPM pressure: 8 (to 9)
+            % CPM pressure: 8 (to 9) !!!!!!!!!!!!!!!!!!!! 
+            % doesn't actually end at 9; goes onto next type 
                 startEv = EEG.event(eventType == 8); 
                 excludeTypes = [-1, 8, 5, 9, 12:15];
                 toExclude = arrayfun(@(e) sum(e.type == excludeTypes), EEG.event) ;
                 endEv = EEG.event(~toExclude);
-                % order by time 
-                if length(startEv) > 1
-                    [~,ord] = sort([startEv.init_time]); startEv = startEv(ord);
-                end
-                % match start/end 
-                pressCpmEv = [];
-                for startEv_ = startEv
-                    endEvOpts = endEv([endEv.init_time] >= startEv_.init_time);
-                    if ~isempty(endEvOpts)
-                        [~, endEv_] = min([endEvOpts.init_time] - startEv_.init_time);
-                        endEv_ = endEvOpts(endEv_);
-                        pressCpmEv = [pressCpmEv; startEv_, endEv_];
-                    end
-                end
+                pressCpmEv = matchStartEndEvs(startEv, endEv);
                 % select only those within iceEv????
+
+            % ------------------------------------------------------------
 
             % baseline in ice
             allEv = [prickCpmEv; pressCpmEv; prickEv; pressEv; tempEv];
@@ -389,6 +229,8 @@ for subj = 1:size(datafolders,1)
                     end
                 end
             end
+
+            % ============================================================
 
             % extract EEG from events 
             EEG_table = table('RowNames',{'before experiment','after experiment','CPM'});
@@ -442,4 +284,51 @@ function outEEG = extractBetweenEvents(inEEG, evs)
         outEEG(idx) = pop_select(inEEG, 'time', bound);
     end
     outEEG = {outEEG};
+end
+
+function [evs, evsInit, evsFin] = getBaselineEvs(startEv, endEv, excludeTypes, splitTypes)
+    evs = matchStartEndEvs(startEv, endEv);
+
+    % handle events between start/end 
+    toExclude = false(size(evs,1),1);
+    for idx = 1:size(evs,1)
+        evBetween = EEG.event( ...
+            (eventTime > evs(idx,1).init_time ) & ...
+            (eventTime < evs(idx,2).init_time) );
+        toExclude(idx) = sum( arrayfun(@(e) sum(e.type == excludeTypes), evBetween) );
+    end
+    evs = evs(~toExclude,:);
+
+    [evsInit, evsFin] = splitBeforeAfter(evs, splitTypes);
+end
+
+function evs = matchStartEndEvs(startEv, endEv)
+    % order by time 
+    if length(startEv) > 1
+        [~,ord] = sort([startEv.init_time]); startEv = startEv(ord);
+    end
+    if length(endEv) > 1
+        [~,ord] = sort([endEv.init_time]); endEv = endEv(ord);
+    end
+    % match start/end 
+    evs = [];
+    for startEv_ = startEv
+        endEvOpts = endEv([endEv.init_time] >= startEv_.init_time);
+        if ~isempty(endEvOpts)
+            [~, endEv_] = min([endEvOpts.init_time] - startEv_.init_time);
+            endEv_ = endEvOpts(endEv_);
+            evs = [evs; startEv_, endEv_];
+        end
+    end
+end
+
+function [evsInit, evsFin] = splitBeforeAfter(evs, splitTypes)
+    % designate before/after experiment 
+    toExclude = false(size(evs,1),1);
+    for idx = 1:size(evs,1)
+        evBetween = EEG.event( ...
+            (eventTime < evs(idx,1).init_time ) );
+        toExclude(idx) = sum( arrayfun(@(e) sum(e.type == splitTypes), evBetween) );
+    end
+    evsInit = evs(~toExclude,:); evsFin = evs(toExclude,:);
 end
