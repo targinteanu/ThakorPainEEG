@@ -8,7 +8,7 @@ subfoldersof = @(d) d([d.isdir] & ...
     ~strcmp({d.name}, '..'));
 
 %home = 'C:\Users\targi\Desktop\Thakor Chronic Pain Data\Data_Chronic Pain';
-home = '/Users/torenarginteanu/Documents/MATLAB/ThakorPainEEG';
+home = '/Users/torenarginteanu/Documents/MATLAB/ThakorPainEEG/Data_Chronic Pain';
 cd(home)
 datafolders = dir;
 datafolders = subfoldersof(datafolders);
@@ -27,11 +27,12 @@ end
 datafolders = datafolders(sel);
 
 %addpath 'C:\Users\targi\Documents\MATLAB\ThakorPainEEG';
-addpath = '/Users/torenarginteanu/Documents/MATLAB/ThakorPainEEG';
+addpath '/Users/torenarginteanu/Documents/MATLAB/ThakorPainEEG';
 svloc = [home,'/Preprocessed ',datestr(datetime, 'yyyy-mm-dd HH.MM.SS')];
 
 %% Start eeglab
-eeglabpath = 'C:\Program Files\MATLAB\R2022a\eeglab2023.0';
+%eeglabpath = 'C:\Program Files\MATLAB\R2022a\eeglab2023.0';
+eeglabpath = '/Applications/MATLAB_R2021b.app/toolbox/eeglab2022.0';
 addpath(eeglabpath)
 eeglab
 
@@ -48,12 +49,16 @@ for subj = 1:size(datafolders,1)
         N = size(datasets,1);
 
         for d2 = 1:N
+            cd(home);
+            cd(datafolders(subj,1).name);
+
             clearvars EEG rejected EEG_table ...
                 pcaComp pcaScr pcaPexp rejectedPCA ...
                 endEv endEv_ startEv startEv_ endEvOpts eventType eventTime ord toExclude ...
                 iceEv iceEvInit iceEvFin openEv openEvInit openEvFin closedEv closedEvInit closedEvFin ...
                 pressEv pressEvInit pressEvFin pressCpmEv prickEv prickEvInit prickEvFin prickCpmEv ...
-                tempEv tempEvInit tempEvFin 
+                tempEv tempEvInit tempEvFin ...
+                eventType eventTime
 
             id = [datafolders(subj,1).name,' --- ',datasets(d2,1).name];
 
@@ -128,7 +133,7 @@ for subj = 1:size(datafolders,1)
             %}
 
 
-            % ================ EXTRACT DESIRED EVENTS ====================
+            %% ================ EXTRACT DESIRED EVENTS ===================
             eventType = [EEG.event.type]; eventTime = [EEG.event.init_time];
 
             % BASELINE ---------------------------------------------------
@@ -137,63 +142,63 @@ for subj = 1:size(datafolders,1)
                 startEv = EEG.event(eventType == 0); endEv = EEG.event(eventType == 1);
                 excludeTypes = 1:13; % exclude baseline if any of these is found between start/end
                 splitTypes = 3:13; % END if any of these is found before baseline start
-                [openEv, openEvInit, openEvFin] = getBaselineEvs(startEv, endEv, excludeTypes, splitTypes);
+                [openEv, openEvInit, openEvFin] = getBaselineEvs(startEv, endEv, excludeTypes, splitTypes, EEG);
 
             % baseline eyes closed: 1 to 2
                 startEv = EEG.event(eventType == 1); endEv = EEG.event(eventType == 2);
                 excludeTypes = [0, 2:13]; % exclude baseline if any of these is found between start/end 
                 splitTypes = 3:13; % END if any of these is found before baseline start
-                [closedEv, closedEvInit, closedEvFin] = getBaselineEvs(startEv, endEv, excludeTypes, splitTypes);
+                [closedEv, closedEvInit, closedEvFin] = getBaselineEvs(startEv, endEv, excludeTypes, splitTypes, EEG);
 
             % hand in ice: 6 to 7
                 startEv = EEG.event(eventType == 6); endEv = EEG.event(eventType == 7);
                 excludeTypes = [6, 7]; % exclude baseline if any of these is found between start/end
-                iceEv = getBaselineEvs(startEv, endEv, excludeTypes, []);
+                iceEv = getBaselineEvs(startEv, endEv, excludeTypes, [], EEG);
 
             % TEMP STIM --------------------------------------------------
 
             % temp stim: 3 
                 startEv = EEG.event(eventType == 3); 
                 t_inter_ev = 4;
-                endEv = getTrainOfEvs(startEv, t_inter_ev, []);
+                [startEv, endEv] = getTrainOfEvs(startEv, t_inter_ev, []);
                 %{
                 excludeTypes = [-1, 3, 5, 9, 12:15]; % these types DO NOT end interval !!!
                 toExclude = arrayfun(@(e) sum(e.type == excludeTypes), EEG.event) ;
                 endEv = EEG.event(~toExclude);
                 tempEv = matchStartEndEvs(startEv, endEv);
                 %}
-                tempEv = [startEv, endEv];
+                tempEv = [startEv', endEv'];
                 % designate before/after ice experiment 
                 splitTypes = [6, 7, 8:10, 12, 13];
-                [tempEvInit, tempEvFin] = splitBeforeAfter(tempEv, splitTypes);
+                [tempEvInit, tempEvFin] = splitBeforeAfter(tempEv, splitTypes, EEG);
 
             % PIN PRICK --------------------------------------------------
 
             % pin prick: 11 
                 startEv = EEG.event(eventType == 11); 
                 t_inter_ev = 2; t_before_ev = 10;
-                endEv = getTrainOfEvs(startEv, t_inter_ev, t_before_ev);
+                [startEv, endEv] = getTrainOfEvs(startEv, t_inter_ev, t_before_ev);
                 %{
                 excludeTypes = [-1, 11, 5, 9, 12:15]; % these types DO NOT end interval !!!
                 toExclude = arrayfun(@(e) sum(e.type == excludeTypes), EEG.event) ;
                 endEv = EEG.event(~toExclude);
                 prickEv = matchStartEndEvs(startEv, endEv);
                 %}
-                prickEv = [startEv, endEv];
+                prickEv = [startEv', endEv'];
                 % designate before/after ice experiment 
                 splitTypes = [6, 7, 8:10, 12, 13];
-                [prickEvInit, prickEvFin] = splitBeforeAfter(prickEv, splitTypes);
+                [prickEvInit, prickEvFin] = splitBeforeAfter(prickEv, splitTypes, EEG);
 
             % CPM pin prick: 10 
                 startEv = EEG.event(eventType == 10); 
-                endEv = getTrainOfEvs(startEv, t_inter_ev, t_before_ev);
+                [startEv, endEv] = getTrainOfEvs(startEv, t_inter_ev, t_before_ev);
                 %{
                 excludeTypes = [-1, 10, 5, 9, 12:15]; % these types DO NOT end interval !!!
                 toExclude = arrayfun(@(e) sum(e.type == excludeTypes), EEG.event) ;
                 endEv = EEG.event(~toExclude);
                 prickCpmEv = matchStartEndEvs(startEv, endEv);
                 %}
-                prickCpmEv = [startEv, endEv];
+                prickCpmEv = [startEv', endEv'];
                 % select only those within iceEv????
 
             % PRESSURE ---------------------------------------------------
@@ -204,7 +209,7 @@ for subj = 1:size(datafolders,1)
                 pressEv = matchStartEndEvs(startEv, endEv);
                 % designate before/after ice experiment 
                 splitTypes = [6, 7, 8:10, 12, 13];
-                [pressEvInit, pressEvFin] = splitBeforeAfter(pressEv, splitTypes);
+                [pressEvInit, pressEvFin] = splitBeforeAfter(pressEv, splitTypes, EEG);
 
             % CPM pressure: 8 (to 9)  
                 startEv = EEG.event(eventType == 8); 
@@ -238,24 +243,25 @@ for subj = 1:size(datafolders,1)
                 end
             end
 
-            % ============================================================
+            %% ===========================================================
 
             % extract EEG from events 
+            timeAfterLast = 3.5; timeBeforeFirst = .5; % s
             EEG_table = table('RowNames',{'before experiment','after experiment','CPM'});
-            EEG_table.BaselineOpen(1) = extractBetweenEvents(EEG, uniqueEvents(openEvInit));
-            EEG_table.BaselineOpen(2) = extractBetweenEvents(EEG, uniqueEvents(openEvFin));
-            EEG_table.BaselineClosed(1) = extractBetweenEvents(EEG, uniqueEvents(closedEvInit));
-            EEG_table.BaselineClosed(2) = extractBetweenEvents(EEG, uniqueEvents(closedEvFin));
-            EEG_table.BaselineIce(1) = extractBetweenEvents(EEG, uniqueEvents(iceEvInit));
-            EEG_table.BaselineIce(2) = extractBetweenEvents(EEG, uniqueEvents(iceEvFin));
-            EEG_table.TempStim(1) = extractBetweenEvents(EEG, uniqueEvents(tempEvInit));
-            EEG_table.TempStim(2) = extractBetweenEvents(EEG, uniqueEvents(tempEvFin));
-            EEG_table.PinPrick(1) = extractBetweenEvents(EEG, uniqueEvents(prickEvInit));
-            EEG_table.PinPrick(2) = extractBetweenEvents(EEG, uniqueEvents(prickEvFin));
-            EEG_table.PinPrick(3) = extractBetweenEvents(EEG, uniqueEvents(prickCpmEv));
-            EEG_table.Pressure(1) = extractBetweenEvents(EEG, uniqueEvents(pressEvInit));
-            EEG_table.Pressure(2) = extractBetweenEvents(EEG, uniqueEvents(pressEvFin));
-            EEG_table.Pressure(3) = extractBetweenEvents(EEG, uniqueEvents(pressCpmEv));
+            EEG_table.BaselineOpen(1) = extractBetweenEvents(EEG, uniqueEvents(openEvInit), [0,0]);
+            EEG_table.BaselineOpen(2) = extractBetweenEvents(EEG, uniqueEvents(openEvFin), [0,0]);
+            EEG_table.BaselineClosed(1) = extractBetweenEvents(EEG, uniqueEvents(closedEvInit), [0,0]);
+            EEG_table.BaselineClosed(2) = extractBetweenEvents(EEG, uniqueEvents(closedEvFin), [0,0]);
+            EEG_table.BaselineIce(1) = extractBetweenEvents(EEG, uniqueEvents(iceEvInit), [0,0]);
+            EEG_table.BaselineIce(2) = extractBetweenEvents(EEG, uniqueEvents(iceEvFin), [0,0]);
+            EEG_table.TempStim(1) = extractBetweenEvents(EEG, uniqueEvents(tempEvInit), [timeBeforeFirst, timeAfterLast]);
+            EEG_table.TempStim(2) = extractBetweenEvents(EEG, uniqueEvents(tempEvFin), [timeBeforeFirst, timeAfterLast]);
+            EEG_table.PinPrick(1) = extractBetweenEvents(EEG, uniqueEvents(prickEvInit), [timeBeforeFirst, timeAfterLast]);
+            EEG_table.PinPrick(2) = extractBetweenEvents(EEG, uniqueEvents(prickEvFin), [timeBeforeFirst, timeAfterLast]);
+            EEG_table.PinPrick(3) = extractBetweenEvents(EEG, uniqueEvents(prickCpmEv), [timeBeforeFirst, timeAfterLast]);
+            EEG_table.Pressure(1) = extractBetweenEvents(EEG, uniqueEvents(pressEvInit), [timeBeforeFirst, timeAfterLast]);
+            EEG_table.Pressure(2) = extractBetweenEvents(EEG, uniqueEvents(pressEvFin), [timeBeforeFirst, timeAfterLast]);
+            EEG_table.Pressure(3) = extractBetweenEvents(EEG, uniqueEvents(pressCpmEv), [timeBeforeFirst, timeAfterLast]);
 
             % -------------------------------------------------
 
@@ -282,13 +288,19 @@ function evs = uniqueEvents(evs)
     end
 end
 
-function outEEG = extractBetweenEvents(inEEG, evs)
-    buf = .5; % s
+function outEEG = extractBetweenEvents(inEEG, evs, buf)
+    % buf: buffer time [before first, after last] (s); both default .5
+    if nargin < 3
+        buf = [.5, .5]; % s
+    end 
+    if length(buf) < 2
+        buf = [.5, buf(1)]; % s
+    end
     outEEG = repmat(inEEG, 1, size(evs,1));
     for idx = 1:size(evs,1)
         bound = [evs(idx,:).init_time];
-        bound(1) = max(inEEG.xmin, bound(1)-buf);
-        bound(2) = min(inEEG.xmax, bound(2)+buf);
+        bound(1) = max(inEEG.xmin, bound(1)-buf(1));
+        bound(2) = min(inEEG.xmax, bound(2)+buf(2));
         outEEG(idx) = pop_select(inEEG, 'time', bound);
     end
     outEEG = {outEEG};
@@ -350,7 +362,8 @@ function [startEvs, endEvs] = getTrainOfEvs(evs, t_inter_ev, t_before_ev)
     startEvs = evs(startEvs); endEvs = evs(evEnd);
 end
 
-function [evs, evsInit, evsFin] = getBaselineEvs(startEv, endEv, excludeTypes, splitTypes)
+function [evs, evsInit, evsFin] = getBaselineEvs(startEv, endEv, excludeTypes, splitTypes, EEG)
+    eventTime = [EEG.event.init_time];
     evs = matchStartEndEvs(startEv, endEv);
 
     % handle events between start/end 
@@ -363,7 +376,7 @@ function [evs, evsInit, evsFin] = getBaselineEvs(startEv, endEv, excludeTypes, s
     end
     evs = evs(~toExclude,:);
 
-    [evsInit, evsFin] = splitBeforeAfter(evs, splitTypes);
+    [evsInit, evsFin] = splitBeforeAfter(evs, splitTypes, EEG);
 end
 
 function evs = matchStartEndEvs(startEv, endEv)
@@ -386,8 +399,9 @@ function evs = matchStartEndEvs(startEv, endEv)
     end
 end
 
-function [evsInit, evsFin] = splitBeforeAfter(evs, splitTypes)
+function [evsInit, evsFin] = splitBeforeAfter(evs, splitTypes, EEG)
     % designate before/after experiment 
+    eventTime = [EEG.event.init_time];
     toExclude = false(size(evs,1),1);
     for idx = 1:size(evs,1)
         evBetween = EEG.event( ...
