@@ -137,8 +137,8 @@ for subj = 1:size(scanfiles,1)
                         SpecList{lstIdx} = curSpecs;
                     end
                 end
-                Epoch_table{r,c} = EpocList;
-                EpochSpec_table{r,c} = SpecList;
+                Epoch_table{r,c} = {EpocList};
+                EpochSpec_table{r,c} = {SpecList};
             end
         end
     end
