@@ -1,5 +1,24 @@
+%% Neuroscan to Mat 
+% Takes in raw neuroscan files. 
+% Outputs only EEG object - no preprocessing. 
+% Saves output as .mat file that can be used for pre-processing, in the same folder. 
+
 %% Set Filepaths
 clear
+
+% CHANGE THESE VALUES ====================================================
+% SET THESE FILEPATHS: 
+% home: base location of data files  
+    %home = 'C:\Users\targi\Desktop\Thakor Chronic Pain Data\Data_Chronic Pain';
+    %home = '/Users/torenarginteanu/Documents/MATLAB/ThakorPainEEG/Data_Chronic Pain';
+    home = '/Users/torenarginteanu/Documents/MATLAB/ThakorPainEEG';
+% codepath: location of matlab scripts
+    %codepath = 'C:\Users\targi\Documents\MATLAB\ThakorPainEEG';
+    codepath = '/Users/torenarginteanu/Documents/MATLAB/ThakorPainEEG';
+% eeglabpath: path to eeglab package 
+    %eeglabpath = 'C:\Program Files\MATLAB\R2022a\eeglab2023.0';
+    eeglabpath = '/Applications/MATLAB_R2021b.app/toolbox/eeglab2022.0';
+% ========================================================================
 
 % functions for manipuliating dirs:
 % get only subfolders
@@ -7,8 +26,6 @@ subfoldersof = @(d) d([d.isdir] & ...
     ~strcmp({d.name}, '.') & ...
     ~strcmp({d.name}, '..'));
 
-%home = 'C:\Users\targi\Desktop\Thakor Chronic Pain Data\Data_Chronic Pain';
-home = '/Users/torenarginteanu/Documents/MATLAB/ThakorPainEEG';
 cd(home)
 datafolders = dir;
 datafolders = subfoldersof(datafolders);
@@ -26,12 +43,10 @@ while ~ok
 end
 datafolders = datafolders(sel);
 
-%addpath 'C:\Users\targi\Documents\MATLAB\ThakorPainEEG';
-addpath = '/Users/torenarginteanu/Documents/MATLAB/ThakorPainEEG';
+addpath(codepath);
 %svloc = [home,'/Preprocessed ',datestr(datetime, 'yyyy-mm-dd HH.MM.SS')];
 
 %% Start eeglab
-eeglabpath = 'C:\Program Files\MATLAB\R2022a\eeglab2023.0';
 addpath(eeglabpath)
 eeglab
 
@@ -67,12 +82,7 @@ for subj = 1:size(datafolders,1)
         N = min(size(datasets,1), size(eventsets,1));
 
         for d2 = 1:N
-            clearvars EEG rejected EEG_table ...
-                pcaComp pcaScr pcaPexp rejectedPCA ...
-                endEv endEv_ startEv startEv_ endEvOpts eventType eventTime ord toExclude ...
-                iceEv iceEvInit iceEvFin openEv openEvInit openEvFin closedEv closedEvInit closedEvFin ...
-                pressEv pressEvInit pressEvFin pressCpmEv prickEv prickEvInit prickEvFin prickCpmEv ...
-                tempEv tempEvInit tempEvFin 
+            clearvars EEG 
 
             id = [datafolders(subj,1).name,' --- ',infolder(d1,1).name,' --- ',datasets(d2,1).name];
 

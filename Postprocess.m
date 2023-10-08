@@ -1,7 +1,34 @@
-%% Set Filepaths
+%% Post Process: 
+% Take in pre-processed EEG_table from .mat files
+% 
+% Output: 
+%   Spec_table: frequency spectra of the EEG_table
+%   Epoch_table: split into individual EEG objects for each epoch
+%   EpochSpec_table: frequency spectra of the Epoch_table 
+% 
+% Save output in .mat file in a new folder within folder of source files. 
+% Folder name details epoch length and overlap, as well as date/time of 
+% postprocessing. 
+
+%% Set Filepaths and Parameters 
 clear 
 
-home = '/Users/torenarginteanu/Documents/MATLAB/ThakorPainEEG';
+% CHANGE THESE VALUES ====================================================
+
+    % Determine the epoch duration and overlap: 
+    epochT = 4; % s
+    epoch_dt = 4; % s
+
+% SET THESE FILEPATHS: 
+% home: location of matlab scripts 
+    %home = 'C:\Users\targi\Documents\MATLAB\ThakorPainEEG';
+    home = '/Users/torenarginteanu/Documents/MATLAB/ThakorPainEEG';
+% eeglabpath: path to eeglab package 
+    %eeglabpath = 'C:\Program Files\MATLAB\R2022a\eeglab2023.0';
+    eeglabpath = '/Applications/MATLAB_R2021b.app/toolbox/eeglab2022.0';
+
+% ========================================================================
+
 cd(home)
 preproDir = uigetdir;
 
@@ -19,16 +46,12 @@ while ~ok
 end
 scanfiles = scanfiles(sel);
 
-    epochT = 4; % s
-    epoch_dt = 4; % s
-
 cd(home); addpath(preproDir);
 svloc = [preproDir,'/Postprocessed ',...
     datestr(datetime, 'yyyy-mm-dd HH.MM.SS'),...
     ' -- ',num2str(epochT),'s epoch, ',num2str(epochT-epoch_dt),'s overlap'];
 
 %% Start eeglab
-eeglabpath = '/Applications/MATLAB_R2021b.app/toolbox/eeglab2022.0';
 addpath(eeglabpath)
 eeglab
 
@@ -78,7 +101,9 @@ for subj = 1:size(scanfiles,1)
     %}
 
     % segment time series into _s epochs 
-    % 
+    % output table will have cell arrays with cells corresponding to
+    % EEG_table EEG objects (trials). Cells will contain vectors of EEG
+    % objects of each epoch. 
     %%{
     disp('Segmenting epochs')
     Epoch_table = EEG_table;

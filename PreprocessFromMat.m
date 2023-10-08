@@ -1,5 +1,35 @@
+%% Pre Process: 
+% Take in EEG object as .mat files. EEG should have events annotated per
+% specifications of this experiment. No other preprocessing should have
+% been done (filtering, channel removal, etc). 
+% 
+% Outputs: 
+%   EEG: has been filtered and had channels/eye movement artifacts removed
+%   EEG_table: contains the EEG for baselines and each trial of each stim
+%              type, divided as: before experiment, during CPM, after
+%              experiment 
+%   Other outputs include removed channels and artifacts 
+% 
+% Save output in .mat file in folder within folder as source file. 
+% Folder name details date/time of preprocessing. 
+
 %% Set Filepaths
 clear
+
+% CHANGE THESE VALUES ====================================================
+% SET THESE FILEPATHS: 
+% home: base location of data files  
+    %home = 'C:\Users\targi\Desktop\Thakor Chronic Pain Data\Data_Chronic Pain';
+    home = '/Users/torenarginteanu/Documents/MATLAB/ThakorPainEEG/Data_Chronic Pain';
+% codepath: location of matlab scripts
+    %codepath = 'C:\Users\targi\Documents\MATLAB\ThakorPainEEG';
+    codepath = '/Users/torenarginteanu/Documents/MATLAB/ThakorPainEEG';
+% eeglabpath: path to eeglab package 
+    %eeglabpath = 'C:\Program Files\MATLAB\R2022a\eeglab2023.0';
+    eeglabpath = '/Applications/MATLAB_R2021b.app/toolbox/eeglab2022.0';
+% ========================================================================
+
+svloc = [home,'/Preprocessed ',datestr(datetime, 'yyyy-mm-dd HH.MM.SS')];
 
 % functions for manipuliating dirs:
 % get only subfolders
@@ -7,8 +37,6 @@ subfoldersof = @(d) d([d.isdir] & ...
     ~strcmp({d.name}, '.') & ...
     ~strcmp({d.name}, '..'));
 
-%home = 'C:\Users\targi\Desktop\Thakor Chronic Pain Data\Data_Chronic Pain';
-home = '/Users/torenarginteanu/Documents/MATLAB/ThakorPainEEG/Data_Chronic Pain';
 cd(home)
 datafolders = dir;
 datafolders = subfoldersof(datafolders);
@@ -26,13 +54,9 @@ while ~ok
 end
 datafolders = datafolders(sel);
 
-%addpath 'C:\Users\targi\Documents\MATLAB\ThakorPainEEG';
-addpath '/Users/torenarginteanu/Documents/MATLAB/ThakorPainEEG';
-svloc = [home,'/Preprocessed ',datestr(datetime, 'yyyy-mm-dd HH.MM.SS')];
+addpath(codepath);
 
 %% Start eeglab
-%eeglabpath = 'C:\Program Files\MATLAB\R2022a\eeglab2023.0';
-eeglabpath = '/Applications/MATLAB_R2021b.app/toolbox/eeglab2022.0';
 addpath(eeglabpath)
 eeglab
 
