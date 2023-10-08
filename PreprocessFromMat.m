@@ -280,15 +280,21 @@ function outEEG = extractBetweenEvents(inEEG, evs)
     outEEG = {outEEG};
 end
 
-function getTrainOfEvs(evs, t_inter_ev, t_before_ev)
+function [startEvs, endEvs] = getTrainOfEvs(evs, t_inter_ev, t_before_ev)
+    if nargin < 3
+        t_before_ev = [];
+    end
+    isInitialBeforeTrain = length(t_before_ev);
+
     init_time = [evs.init_time];
     timeDiff = diff(init_time);
     intvlFromPrev = [inf, timeDiff]; intvlToNext = [timeDiff, inf];
 
-    t_inter_ev = 2; t_before_ev = 10;
     firstOfTrain = (intvlToNext < t_inter_ev) & (intvlFromPrev >= t_inter_ev);
     lastOfTrain = (intvlFromPrev < t_inter_ev) & (intvlToNext >= t_inter_ev);
-    evBefore = (intvlToNext >= t_inter_ev) & (intvlToNext < t_before_ev) & (intvlFromPrev >= t_inter_ev);
+    if isInitialBeforeTrain
+        evBefore = (intvlToNext >= t_inter_ev) & (intvlToNext < t_before_ev) & (intvlFromPrev >= t_inter_ev);
+    end
 
     evStart = find(firstOfTrain); evEnd = zeros(size(evStart));
     for idx = 1:length(evStart)
@@ -306,24 +312,28 @@ function getTrainOfEvs(evs, t_inter_ev, t_before_ev)
     evStart = evStart(evEnd >= 0); evEnd = evEnd(evEnd >= 0);
 
     ev0 = zeros(size(evStart));
-    for idx = 1:length(evStart)
-        e0 = find(evBefore);
-        e0 = e0(e0 <= evStart(idx));
-        if idx > 1
-            e0 = e0(e0 >= evStart(idx-1));
-        end
-        if isempty(e0)
-            ev0(idx) = -1;
-        else
-            ev0(idx) = min(e0);
+    if isInitialBeforeTrain
+        for idx = 1:length(evStart)
+            e0 = find(evBefore);
+            e0 = e0(e0 <= evStart(idx));
+            if idx > 1
+                e0 = e0(e0 >= evStart(idx-1));
+            end
+            if isempty(e0)
+                ev0(idx) = -1;
+            else
+                ev0(idx) = min(e0);
+            end
         end
     end
 
-    startEvs = ev0;
-    startEvs(ev0 < 0) = evStart(ev0 < 0);
+    if isInitialBeforeTrain
+        startEvs = ev0;
+        startEvs(ev0 < 0) = evStart(ev0 < 0);
+    else
+        startEvs = evStart;
+    end
     startEvs = evs(startEvs); endEvs = evs(evEnd);
-    startEvs = [startEvs.latency]/EEG.srate;
-    endEvs = [endEvs.latency]/EEG.srate;
 end
 
 function [evs, evsInit, evsFin] = getBaselineEvs(startEv, endEv, excludeTypes, splitTypes)
