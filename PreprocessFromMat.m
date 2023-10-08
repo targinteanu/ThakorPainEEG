@@ -152,34 +152,48 @@ for subj = 1:size(datafolders,1)
 
             % TEMP STIM --------------------------------------------------
 
-            % temp stim: 3 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            % temp stim: 3 
                 startEv = EEG.event(eventType == 3); 
+                t_inter_ev = 4;
+                endEv = getTrainOfEvs(startEv, t_inter_ev, []);
+                %{
                 excludeTypes = [-1, 3, 5, 9, 12:15]; % these types DO NOT end interval !!!
                 toExclude = arrayfun(@(e) sum(e.type == excludeTypes), EEG.event) ;
                 endEv = EEG.event(~toExclude);
                 tempEv = matchStartEndEvs(startEv, endEv);
+                %}
+                tempEv = [startEv, endEv];
                 % designate before/after ice experiment 
                 splitTypes = [6, 7, 8:10, 12, 13];
                 [tempEvInit, tempEvFin] = splitBeforeAfter(tempEv, splitTypes);
 
             % PIN PRICK --------------------------------------------------
 
-            % pin prick: 11 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            % pin prick: 11 
                 startEv = EEG.event(eventType == 11); 
+                t_inter_ev = 2; t_before_ev = 10;
+                endEv = getTrainOfEvs(startEv, t_inter_ev, t_before_ev);
+                %{
                 excludeTypes = [-1, 11, 5, 9, 12:15]; % these types DO NOT end interval !!!
                 toExclude = arrayfun(@(e) sum(e.type == excludeTypes), EEG.event) ;
                 endEv = EEG.event(~toExclude);
                 prickEv = matchStartEndEvs(startEv, endEv);
+                %}
+                prickEv = [startEv, endEv];
                 % designate before/after ice experiment 
                 splitTypes = [6, 7, 8:10, 12, 13];
                 [prickEvInit, prickEvFin] = splitBeforeAfter(prickEv, splitTypes);
 
-            % CPM pin prick: 10 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            % CPM pin prick: 10 
                 startEv = EEG.event(eventType == 10); 
+                endEv = getTrainOfEvs(startEv, t_inter_ev, t_before_ev);
+                %{
                 excludeTypes = [-1, 10, 5, 9, 12:15]; % these types DO NOT end interval !!!
                 toExclude = arrayfun(@(e) sum(e.type == excludeTypes), EEG.event) ;
                 endEv = EEG.event(~toExclude);
                 prickCpmEv = matchStartEndEvs(startEv, endEv);
+                %}
+                prickCpmEv = [startEv, endEv];
                 % select only those within iceEv????
 
             % PRESSURE ---------------------------------------------------
