@@ -145,8 +145,10 @@ for subj = 1:size(scanfiles,1)
     clear curEEGlist eeg t curEpoch curEpochs EpocList curSpec curSpecs SpecList
     %}
 
+    Combined_table = tblReorg(EEG_table, Spec_table, Epoch_table, EpochSpec_table);
+
     save([svloc,'/',fn,' -- ','postprocessed.mat'], ...
-        'EEG_table', 'Epoch_table', 'Spec_table', 'EpochSpec_table');
+        'EEG_table', 'Epoch_table', 'Spec_table', 'EpochSpec_table', 'Combined_table');
 
     clear EEG_table Epoch_table Spec_table EpochSpec_table
 end
