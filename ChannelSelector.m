@@ -9,7 +9,10 @@ for s = 1:length(scanfiles)
         dataTable = dataTables{subj,1};
         for c = 1:width(dataTable)
             EEG = dataTable{1,c}{1};
-            chanObjAll = [chanObjAll, EEG.chanlocs];
+            if ~isempty(EEG)
+                EEG = EEG(1);
+                chanObjAll = [chanObjAll, EEG.chanlocs];
+            end
         end
     end
 end
@@ -28,9 +31,12 @@ for s = 1:length(scanfiles)
         dataTable = dataTables{subj,1};
         for c = 1:width(dataTable)
             EEG = dataTable{1,c}{1};
-            for ch = 1:length(chanObjAll)
-                idx(ch) = idx(ch) & ...
-                    sum( strcmpi(chanObjAll(ch).labels, {EEG.chanlocs.labels}) );
+            if ~isempty(EEG)
+                EEG = EEG(1);
+                for ch = 1:length(chanObjAll)
+                    idx(ch) = idx(ch) & ...
+                        sum( strcmpi(chanObjAll(ch).labels, {EEG.chanlocs.labels}) );
+                end
             end
         end
     end

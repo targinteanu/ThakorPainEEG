@@ -82,7 +82,7 @@ clear testVars
 [chansel, chanselName, allchan0, allchan] = ChannelSelector(scanfiles, DATATABLES);
 %}
 %% combination "subjects" 
-varnames = DATATABLES{1}{1,1,2}.Properties.VariableNames;
+varnames = DATATABLES{1}{1,1}.Properties.VariableNames;
 comboSubjTbls = cell(1, nMeas);
 
 somechan = true(size(allchan));
@@ -92,9 +92,12 @@ for s = 1:length(scanfiles)
         dataTable = dataTables{subj,1}; % Combined_table with tY
         for c = 1:width(dataTable)
             EEG_all = dataTable{1,c}{1}; % EEG 
-            for ch = 1:length(somechan)
-                somechan(ch) = somechan(ch) & sum( ...
-                    strcmpi(allchan(ch).labels, {EEG_all.chanlocs.labels}) );
+            if ~isempty(EEG_all)
+                EEG_all = EEG_all(1);
+                for ch = 1:length(somechan)
+                    somechan(ch) = somechan(ch) & sum( ...
+                        strcmpi(allchan(ch).labels, {EEG_all.chanlocs.labels}) );
+                end
             end
         end
     end
@@ -118,18 +121,21 @@ for s = 1:length(scanfiles)
         cumuTYsubj = cell(1, width(dataTable));
         for c = 1:width(dataTable)
             EEG_all  = dataTable{1,c}{1};
-            tY_by_trial = dataTable{5,c}{1};
-            cumuTY = [];
-            for trl = 1:length(tY_by_trial)
-                tY = tY_by_trial{trl};
-                ord = zeros(1,length(somechan));
-                for ch = 1:length(somechan)
-                    ord(ch) = find( ...
-                        strcmpi(somechan(ch).labels, {EEG_all.chanlocs.labels}) );
+            if ~isempty(EEG_all)
+                EEG_all = EEG_all(1);
+                tY_by_trial = dataTable{5,c}{1};
+                cumuTY = [];
+                for trl = 1:length(tY_by_trial)
+                    tY = tY_by_trial{trl};
+                    ord = zeros(1,length(somechan));
+                    for ch = 1:length(somechan)
+                        ord(ch) = find( ...
+                            strcmpi(somechan(ch).labels, {EEG_all.chanlocs.labels}) );
+                    end
+                    cumuTY = cat(1, cumuTY, tY(:,ord,:)); % all trials concatenated
                 end
-                cumuTY = cat(1, cumuTY, tY(:,ord,:)); % all trials concatenated 
+                cumuTYsubj{c} = cumuTY; % one subj; c = stim type
             end
-            cumuTYsubj{c} = cumuTY; % one subj; c = stim type 
         end
         cumuTYs = [cumuTYs; cumuTYsubj]; % #subjs x #stimtypes
 
