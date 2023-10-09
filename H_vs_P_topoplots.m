@@ -17,6 +17,7 @@ scanfiles = scanfiles((~strcmp({scanfiles.name},'.')) & ...
                       (~strcmp({scanfiles.name},'..')) & ...
                       (~strcmp({scanfiles.name},'.DS_Store')) );
 scanfiles = scanfiles(~[scanfiles.isdir]);
+cd(home); addpath(postproDir);
 [~,scanfilesH] = listdlg_selectWrapper({scanfiles.name},'multiple','Select Controls');
 [~,scanfilesP] = listdlg_selectWrapper({scanfiles.name},'multiple','Select Patients');
 scanfiles = {scanfilesH, scanfilesP};
@@ -24,7 +25,6 @@ scanfileNames = {'Control', 'Patient'};
 maxNgrp = max( arrayfun(@(s) length(scanfiles{s}), 1:length(scanfiles)) );
 maxNgrp = maxNgrp + 1; % make room for combo subj
 
-cd(home); addpath(postproDir);
 svloc = [postproDir,'/Comparison Topoplots ',...
     datestr(datetime, 'yyyy-mm-dd HH.MM.SS')];
 mkdir(svloc); svloc = [svloc,'/'];
@@ -62,16 +62,28 @@ for s = 1:length(scanfiles)
 
         tempArr = EEG_table.BaselineOpen('before experiment');
         tempTbl.BaselineBefore('EEG_all') = tempArr; 
-        curSpec = EpochSpec_table.BaselineOpen('before experiment'); curSpec = curSpec{:};
-        curEpoc = Epoch_table.BaselineOpen('before experiment');     curEpoc = curEpoc{:};
-        [Y,t] = fcn(curSpec, curEpoc); 
+        curSpecs = EpochSpec_table.BaselineOpen('before experiment'); curSpecs = curSpecs{:};
+        curEpocs = Epoch_table.BaselineOpen('before experiment');     curEpocs = curEpocs{:};
+        Y = []; t = [];
+        for trl = 1:length(curEpocs)
+            curSpec = curSpecs{trl};
+            curEpoc = curEpocs{trl};
+            [Y_trl,t_trl] = fcn(curSpec, curEpoc); 
+            Y = [Y; Y_trl]; t = [t; t_trl];
+        end
         tempTbl.BaselineBefore('tY_all') = {cat(3,t,Y)}; 
 
         tempArr = EEG_table.BaselineOpen('after experiment');
         tempTbl.BaselineAfter('EEG_all') = tempArr; 
-        curSpec = EpochSpec_table.BaselineOpen('after experiment'); curSpec = curSpec{:};
-        curEpoc = Epoch_table.BaselineOpen('after experiment');     curEpoc = curEpoc{:};
-        [Y,t] = fcn(curSpec, curEpoc); 
+        curSpecs = EpochSpec_table.BaselineOpen('after experiment'); curSpecs = curSpecs{:};
+        curEpocs = Epoch_table.BaselineOpen('after experiment');     curEpocs = curEpocs{:};
+        Y = []; t = [];
+        for trl = 1:length(curEpocs)
+            curSpec = curSpecs{trl};
+            curEpoc = curEpocs{trl};
+            [Y_trl,t_trl] = fcn(curSpec, curEpoc); 
+            Y = [Y; Y_trl]; t = [t; t_trl];
+        end
         tempTbl.BaselineAfter('tY_all') = {cat(3,t,Y)}; 
 
         tempArr1 = EEG_table.TempStim('before experiment'); tempArr2 = EEG_table.TempStim('after experiment');
