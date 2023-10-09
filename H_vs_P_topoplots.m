@@ -42,7 +42,7 @@ end
 clear n
 
 %% calculations 
-testVars = {'BaselieOpen', 'TempStim', 'PinPrick'};
+testVars = {'BaselieOpenBefore', 'TempStim', 'PinPrick'};
 DATATABLES = cell(size(scanfiles));
 
 for s = 1:length(scanfiles)
@@ -61,10 +61,9 @@ for s = 1:length(scanfiles)
         % construct data tables *************
         
         
-        tY_table = fcnTbl(EEG_table, Epoch_table, EpochSpec_table, fcn, testVars);
+        tY_table = fcnTbl(Combined_table, fcn, testVars);
 
-        dataTables{subj, n, 1} = tY_table;
-        dataTables{subj, n, 2} = EEG_table;
+        dataTables{subj, n} = tY_table;
         clear tY_table
 
         clear fcn
@@ -76,245 +75,7 @@ for s = 1:length(scanfiles)
     DATATABLES{s} = dataTables;
     clear sf dataTables
 end
-
-%% determine max trial duration
-%{
-disp('determining trial durations')
-maxTrialDur = 0; % s
-for DT = 1:length(DATATABLES)
-    dataTables = DATATABLES{DT};
-    for subj = 1:length(dataTables)
-        EEG_table = dataTables{subj,1}{1,:};
-        for c = 1:length(EEG_table)
-            EEG = EEG_table{c};
-            if ~isempty(EEG)
-                evs = EEG.event;
-                evs = evs(arrayfun(@(ev) ~sum(strcmp(ev.type, {'-1','15','14','12','13'})), evs));
-                init_time = [evs.init_time];
-                timeDiff = diff(init_time);
-                sameTrial = [0, timeDiff <= timeBetweenEvents, 0];
-                % ^ event i = same trial as event i-1
-                trialBnd = diff(sameTrial); % 1=start, -1=end
-                dur = init_time(trialBnd == -1) - init_time(trialBnd == 1);
-                if isempty(dur)
-                    dur = 0;
-                end
-                maxTrialDur = max(maxTrialDur, max(dur));
-            end
-            clear EEG init_time timeDiff sameTrial trialBnd dur evs
-        end
-        clear EEG_table
-    end
-    clear dataTables
-end
-
-%% segment into trials 
-maxNtrl = 0;
-for DT = 1:length(DATATABLES)
-    dataTables = DATATABLES{DT};
-    sf = scanfiles{DT};
-    for subj = 1:length(dataTables)
-        fn = sf{subj}
-
-        for n = 1:nMeas
-
-        dataTable = dataTables{subj,n};
-
-        EEG_table = dataTable{1,:};
-        EEG_trial = EEG_table;
-        tY_table  = dataTable{3,:};
-        tY_trial  = tY_table;
-
-        for c = 1:length(EEG_table)
-            v = dataTable.Properties.VariableNames{c};
-            disp(['segmenting ',v,' into trials'])
-
-            for r = 1:height(EEG_table)
-                EEG = EEG_table{c};
-                if ~isempty(EEG) & ~isempty(tY_table{c})
-                    % setup variables
-                    tY = tY_table{c}; Y = tY(:,:,2); t = tY(:,:,1);
-                    evs = EEG.event;
-                    % don't consider events of unwanted type
-                    evs = evs(arrayfun(@(ev) ~sum(strcmp(ev.type, {'-1','15','14','12','13'})), evs));
-
-                    % --------------------------------------------------------
-
-                    if sum(strcmp(v, {'BaselineBefore', 'BaselineAfter'}))
-                        startEvs = evs(1); endEvs = evs(end);
-                        startEvs = [startEvs.latency]/EEG.srate;
-                        endEvs = [endEvs.latency]/EEG.srate;
-
-                    elseif strcmp(v, 'PinPrick')
-                        evs = evs(~~arrayfun(@(ev) sum(strcmp(ev.type, {'11','10'})), evs));
-
-                        init_time = [evs.init_time];
-                        timeDiff = diff(init_time);
-                        intvlFromPrev = [inf, timeDiff]; intvlToNext = [timeDiff, inf];
-
-                        t_inter_ev = 2; t_before_ev = 10;
-                        firstOfTrain = (intvlToNext < t_inter_ev) & (intvlFromPrev >= t_inter_ev);
-                        lastOfTrain = (intvlFromPrev < t_inter_ev) & (intvlToNext >= t_inter_ev);
-                        prickBefore = (intvlToNext >= t_inter_ev) & (intvlToNext < t_before_ev) & (intvlFromPrev >= t_inter_ev);
-
-                        evStart = find(firstOfTrain); evEnd = zeros(size(evStart));
-                        for idx = 1:length(evStart)
-                            eEnd = find(lastOfTrain);
-                            eEnd = eEnd(eEnd >= evStart(idx));
-                            if idx < length(evStart)
-                                eEnd = eEnd(eEnd <= evStart(idx+1));
-                            end
-                            if isempty(eEnd)
-                                evEnd(idx) = -1;
-                            else
-                                evEnd(idx) = max(eEnd);
-                            end
-                        end
-                        evStart = evStart(evEnd >= 0); evEnd = evEnd(evEnd >= 0);
-
-                        ev0 = zeros(size(evStart));
-                        for idx = 1:length(evStart)
-                            e0 = find(prickBefore);
-                            e0 = e0(e0 <= evStart(idx));
-                            if idx > 1
-                                e0 = e0(e0 >= evStart(idx-1));
-                            end
-                            if isempty(e0)
-                                ev0(idx) = -1;
-                            else
-                                ev0(idx) = min(e0);
-                            end
-                        end
-
-                        startEvs = ev0;
-                        startEvs(ev0 < 0) = evStart(ev0 < 0);
-                        startEvs = evs(startEvs); endEvs = evs(evEnd);
-                        startEvs = [startEvs.latency]/EEG.srate;
-                        endEvs = [endEvs.latency]/EEG.srate;
-
-                    elseif strcmp(v, 'TempStim')
-                        evs = evs(arrayfun(@(ev) strcmp(ev.type, '3'), evs));
-
-                        init_time = [evs.init_time];
-                        timeDiff = diff(init_time);
-                        intvlFromPrev = [inf, timeDiff]; intvlToNext = [timeDiff, inf];
-
-                        t_inter_ev = 4;
-                        firstOfTrain = (intvlToNext < t_inter_ev) & (intvlFromPrev >= t_inter_ev);
-                        lastOfTrain = (intvlFromPrev < t_inter_ev) & (intvlToNext >= t_inter_ev);
-
-                        evStart = find(firstOfTrain); evEnd = zeros(size(evStart));
-                        for idx = 1:length(evStart)
-                            eEnd = find(lastOfTrain);
-                            eEnd = eEnd(eEnd >= evStart(idx));
-                            if idx < length(evStart)
-                                eEnd = eEnd(eEnd <= evStart(idx+1));
-                            end
-                            if isempty(eEnd)
-                                evEnd(idx) = -1;
-                            else
-                                evEnd(idx) = max(eEnd);
-                            end
-                        end
-                        evStart = evStart(evEnd >= 0); evEnd = evEnd(evEnd >= 0);
-
-                        startEvs = evs(evStart); endEvs = evs(evEnd);
-                        startEvs = [startEvs.latency]/EEG.srate;
-                        endEvs = [endEvs.latency]/EEG.srate;
-
-                    elseif strcmp(v, 'Pressure')
-                        startEvs = evs(~~arrayfun(@(ev) sum(strcmp(ev.type, {'4','8'})), evs));
-                        endEvs   = evs(~~arrayfun(@(ev) sum(strcmp(ev.type, {'5','9'})), evs));
-
-                        % order by time
-                        if length(startEvs) > 1
-                            [~,ord] = sort([startEvs.init_time]); startEvs = startEvs(ord);
-                        end
-                        % match start/end
-                        pressEv = [];
-                        for startEv_ = startEvs
-                            endEvOpts = endEvs([endEvs.init_time] >= startEv_.init_time);
-                            if ~isempty(endEvOpts)
-                                [~, endEv_] = min([endEvOpts.init_time] - startEv_.init_time);
-                                endEv_ = endEvOpts(endEv_);
-                                pressEv = [pressEv; startEv_, endEv_];
-                            end
-                        end
-                        if isempty(pressEv)
-                            startEvs = []; endEvs = [];
-                        else
-                            startEvs = pressEv(:,1); endEvs = pressEv(:,2);
-
-                            startEvs = [startEvs.latency]/EEG.srate;
-                            endEvs = [endEvs.latency]/EEG.srate;
-                        end
-
-                    else
-
-                        init_time = [evs.init_time];
-                        timeDiff = diff(init_time);
-                        intvlFromPrev = [inf, timeDiff]; intvlToNext = [timeDiff, inf];
-
-                        sameTrial = [0, timeDiff <= timeBetweenEvents];
-                        % ^ event i = same trial as event i-1
-                        startEvs = evs(~sameTrial);
-                        startEvs = [startEvs.latency]/EEG.srate;
-                        endEvs = startEvs + maxTrialDur;
-
-                    end
-
-                    endEvs = endEvs + timeAfterLast;
-
-                    clear t_inter_ev t_before_ev firstOfTrain lastOfTrain prickBefore
-                    clear intvlToNext intvlFromPrev timeDiff init_time
-                    clear pressEv startEv_ endEv_ endEvOpts ord
-
-                    EEGs = repmat(EEG, size(startEvs));
-                    tYs = cell(size(startEvs));
-
-                    for idx = 1:length(startEvs)
-                        startT = startEvs(idx);
-                        endT = endEvs(idx);
-
-                        disp(['Segment ',num2str(idx),' of ',num2str(length(startEvs)),...
-                            ' (',num2str(100*idx/length(startEvs),3),'%)'])
-                        curEEG = extractBetweenTimes(EEG, [startT, endT]);
-                        curEEG.xmin = curEEG.xmin + startT;
-                        curEEG.xmax = curEEG.xmax + startT;
-                        curEEG.times = curEEG.times + startT*1000;
-                        for evIdx = 1:length(curEEG.event)
-                            curEEG.event(evIdx).latency = curEEG.event(evIdx).latency + startT*curEEG.srate;
-                        end
-                        EEGs(idx) = curEEG;
-
-                        ti = (t >= startT) & (t < endT);
-                        ti = ti | [zeros(1,size(ti,2));ti(1:(end-1),:)] | [ti(2:end,:);zeros(1,size(ti,2))] ;
-                        curY = Y; curY(~ti) = nan;
-                        curT = t; curT(~ti) = nan;
-                        tYs{idx} = cat(3,curT,curY);
-
-                        clear startT endT curEEG ti curY curT evIdx
-                    end
-                    maxNtrl = max(maxNtrl, length(startEvs));
-                    EEG_trial{r,c} = EEGs;
-                    tY_trial{r,c} = tYs;
-                    % --------------------------------------------------------
-
-                end
-                clear EEG tY init_time timeDiff sameTrial EEGs tYs evs startEvs
-            end
-        end
-        
-        dataTable{2,:} = EEG_trial; dataTable{4,:} = tY_trial;
-        dataTables{subj,n} = dataTable; 
-        clear EEG_table tY_table EEG_trial tY_trial
-
-        end
-    end
-    DATATABLES{DT} = dataTables;
-    clear dataTables dataTable sf
-end
-%}
+clear testVars
 
 %% channel selection 
 %%{
@@ -328,9 +89,9 @@ somechan = true(size(allchan));
 for s = 1:length(scanfiles)
     dataTables = DATATABLES{s};
     for subj = 1:size(dataTables,1)
-        dataTable = dataTables{subj,1,2}; % EEG_table
+        dataTable = dataTables{subj,1}; % Combined_table with tY
         for c = 1:width(dataTable)
-            EEG_all = dataTable{1,c}{1};
+            EEG_all = dataTable{1,c}{1}; % EEG 
             for ch = 1:length(somechan)
                 somechan(ch) = somechan(ch) & sum( ...
                     strcmpi(allchan(ch).labels, {EEG_all.chanlocs.labels}) );
@@ -353,17 +114,14 @@ for s = 1:length(scanfiles)
 
     for subj = 1:size(dataTables,1)
 
-        dataTable = dataTables{subj,n,1};
-        eegTable  = dataTables{subj,n,2};
-        % LEFT OFF HERE
-        % must pick between before, after, cpm and put into comboSubjTbl
+        dataTable = dataTables{subj,n};
         cumuTYsubj = cell(1, width(dataTable));
         for c = 1:width(dataTable)
             EEG_all  = dataTable{1,c}{1};
-            tY_trial = dataTable{4,c}{1};
+            tY_by_trial = dataTable{5,c}{1};
             cumuTY = [];
-            for trl = 1:length(tY_trial)
-                tY = tY_trial{trl};
+            for trl = 1:length(tY_by_trial)
+                tY = tY_by_trial{trl};
                 ord = zeros(1,length(somechan));
                 for ch = 1:length(somechan)
                     ord(ch) = find( ...
@@ -371,7 +129,7 @@ for s = 1:length(scanfiles)
                 end
                 cumuTY = cat(1, cumuTY, tY(:,ord,:)); % all trials concatenated 
             end
-            cumuTYsubj{c} = cumuTY; % diff stimuli within one subj
+            cumuTYsubj{c} = cumuTY; % one subj; c = stim type 
         end
         cumuTYs = [cumuTYs; cumuTYsubj]; % #subjs x #stimtypes
 
@@ -387,7 +145,7 @@ for s = 1:length(scanfiles)
     end
 
     clear cumuTY cumuTYsubj dataTable ...
-          EEG_all tY_trial tY ord
+          EEG_all tY_by_trial tY ord
 
     clear dataTables cumuTYs
 end
@@ -549,16 +307,6 @@ end
 
 %% helper functions 
 
-function outArr = ArrCat(Arr1, Arr2)
-    if isempty(Arr1)
-        outArr = Arr2;
-    elseif isempty(Arr2)
-        outArr = Arr1;
-    else
-        outArr = [Arr1, Arr2];
-    end
-end
-
 function subtbl = makeSubtbl(tbl, vars)
     subtbl = tbl(:, ismember(tbl.Properties.VariableNames, vars));
 end
@@ -658,29 +406,6 @@ function lblSubplots(H,W,rttl,cttl,flipRC,cbCol,cbLcn)
             % "regular" cases (no iv, ix, etc)
             idxFirst = find(numval >= baseval); idxFirst = idxFirst(end);
             num = [num,base(idxFirst)]; numval = numval - baseval(idxFirst);
-        end
-    end
-end
-
-function [tblOut, eegTbl, epochTbl, epochSpecTbl] = ...
-    fcnTbl(eegTbl, epochTbl, epochSpecTbl, fcn, vars)
-    if nargin > 4
-        eegTbl       = makeSubtbl(eegTbl,       vars);
-        epochTbl     = makeSubtbl(epochTbl,     vars);
-        epochSpecTbl = makeSubtbl(epochSpecTbl, vars);
-    end
-    
-    tblOut = epochTbl; 
-    W = height(epochTbl); H = width(epochTbl); 
-    for c = 1:H
-        for r = 1:W
-            curSpec = epochSpecTbl{r,c}{:};
-            curEpoc = epochTbl{r,c}{:};
-            if ~isempty(curEpoc)
-                [Y,t] = fcn(curSpec, curEpoc);
-                tblOut{r,c} = {cat(3,t,Y)};
-                eegTbl{r,c} = {eegTbl{r,c}{1}(1)};
-            end
         end
     end
 end
