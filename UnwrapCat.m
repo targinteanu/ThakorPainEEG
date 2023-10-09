@@ -9,4 +9,5 @@ function outArr = UnwrapCat(Arr1, Arr2)
     else
         outArr = [Arr1, Arr2];
     end
+    outArr = {outArr};
 end
