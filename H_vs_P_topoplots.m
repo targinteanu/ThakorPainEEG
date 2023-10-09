@@ -39,15 +39,16 @@ ynames = fcns; ylims = fcns;
 for n = 1:nMeas
     [fcns{n}, ynames{n}, ylims{n}] = MeasurementSelector();
 end
+clear n
 
 %% calculations 
-timeBetweenEvents = 5; timeAfterLast = 3; % seconds 
+testVars = {'BaselieOpen', 'TempStim', 'PinPrick'};
 DATATABLES = cell(size(scanfiles));
 
 for s = 1:length(scanfiles)
     sf = scanfiles{s};
 
-    dataTables = cell(length(sf),nMeas);
+    dataTables = cell(length(sf),nMeas,2); % 1 is tY, 2 is original 
     for subj = 1:length(sf)
         fn = sf{subj}
         load(fn);
@@ -58,61 +59,13 @@ for s = 1:length(scanfiles)
         % run calculations on desired variables
         disp('calculating desired variables')
         % construct data tables *************
-        tempTbl = table('RowNames',{'EEG_all','EEG_trial','tY_all','tY_trial'});
+        
+        
+        tY_table = fcnTbl(EEG_table, Epoch_table, EpochSpec_table, fcn, testVars);
 
-        tempArr = EEG_table.BaselineOpen('before experiment');
-        tempTbl.BaselineBefore('EEG_all') = tempArr; 
-        curSpecs = EpochSpec_table.BaselineOpen('before experiment'); curSpecs = curSpecs{:};
-        curEpocs = Epoch_table.BaselineOpen('before experiment');     curEpocs = curEpocs{:};
-        Y = []; t = [];
-        for trl = 1:length(curEpocs)
-            curSpec = curSpecs{trl};
-            curEpoc = curEpocs{trl};
-            [Y_trl,t_trl] = fcn(curSpec, curEpoc); 
-            Y = [Y; Y_trl]; t = [t; t_trl];
-        end
-        tempTbl.BaselineBefore('tY_all') = {cat(3,t,Y)}; 
-
-        tempArr = EEG_table.BaselineOpen('after experiment');
-        tempTbl.BaselineAfter('EEG_all') = tempArr; 
-        curSpecs = EpochSpec_table.BaselineOpen('after experiment'); curSpecs = curSpecs{:};
-        curEpocs = Epoch_table.BaselineOpen('after experiment');     curEpocs = curEpocs{:};
-        Y = []; t = [];
-        for trl = 1:length(curEpocs)
-            curSpec = curSpecs{trl};
-            curEpoc = curEpocs{trl};
-            [Y_trl,t_trl] = fcn(curSpec, curEpoc); 
-            Y = [Y; Y_trl]; t = [t; t_trl];
-        end
-        tempTbl.BaselineAfter('tY_all') = {cat(3,t,Y)}; 
-
-        tempArr1 = EEG_table.TempStim('before experiment'); tempArr2 = EEG_table.TempStim('after experiment');
-        tempArr = [tempArr1{:} tempArr2{:}];
-        tempTbl.TempStim('EEG_all') = {tempArr}; 
-        tempArr1 = Epoch_table.TempStim('before experiment'); tempArr2 = Epoch_table.TempStim('after experiment');
-        curEpoc = ArrCat(tempArr1{:}, tempArr2{:});
-        tempArr1 = EpochSpec_table.TempStim('before experiment'); tempArr2 = EpochSpec_table.TempStim('after experiment');
-        curSpec = ArrCat(tempArr1{:}, tempArr2{:});
-        [Y,t] = fcn(curSpec, curEpoc);
-        tempTbl.TempStim('tY_all') = {cat(3,t,Y)}; 
-
-        tempArr1 = EEG_table.PinPrick('before experiment'); tempArr2 = EEG_table.PinPrick('after experiment');
-        tempArr = [tempArr1{:} tempArr2{:}];
-        tempTbl.PinPrick('EEG_all') = {tempArr}; 
-        tempArr1 = Epoch_table.PinPrick('before experiment'); tempArr2 = Epoch_table.PinPrick('after experiment');
-        curEpoc = ArrCat(tempArr1{:}, tempArr2{:});
-        tempArr1 = EpochSpec_table.PinPrick('before experiment'); tempArr2 = EpochSpec_table.PinPrick('after experiment');
-        curSpec = ArrCat(tempArr1{:}, tempArr2{:});
-        [Y,t] = fcn(curSpec, curEpoc);
-        tempTbl.PinPrick('tY_all') = {cat(3,t,Y)}; 
-
-        %{
-        [tY_table, EEG_table] = ...
-            fcnTbl(EEG_table, Epoch_table, EpochSpec_table, fcn, testVars);
-        %}
-
-        dataTables{subj, n} = tempTbl;
-        clear tempTbl tempArr tempArr1 tempArr2 curEpoc curSpec
+        dataTables{subj, n, 1} = tY_table;
+        dataTables{subj, n, 2} = EEG_table;
+        clear tY_table
 
         clear fcn
         end
@@ -125,6 +78,7 @@ for s = 1:length(scanfiles)
 end
 
 %% determine max trial duration
+%{
 disp('determining trial durations')
 maxTrialDur = 0; % s
 for DT = 1:length(DATATABLES)
@@ -360,20 +314,21 @@ for DT = 1:length(DATATABLES)
     DATATABLES{DT} = dataTables;
     clear dataTables dataTable sf
 end
+%}
 
 %% channel selection 
 %%{
 [chansel, chanselName, allchan0, allchan] = ChannelSelector(scanfiles, DATATABLES);
 %}
 %% combination "subjects" 
-varnames = DATATABLES{1}{1,1}.Properties.VariableNames;
+varnames = DATATABLES{1}{1,1,2}.Properties.VariableNames;
 comboSubjTbls = cell(1, nMeas);
 
 somechan = true(size(allchan));
 for s = 1:length(scanfiles)
     dataTables = DATATABLES{s};
     for subj = 1:size(dataTables,1)
-        dataTable = dataTables{subj,1};
+        dataTable = dataTables{subj,1,2}; % EEG_table
         for c = 1:width(dataTable)
             EEG_all = dataTable{1,c}{1};
             for ch = 1:length(somechan)
@@ -398,7 +353,10 @@ for s = 1:length(scanfiles)
 
     for subj = 1:size(dataTables,1)
 
-        dataTable = dataTables{subj,n};
+        dataTable = dataTables{subj,n,1};
+        eegTable  = dataTables{subj,n,2};
+        % LEFT OFF HERE
+        % must pick between before, after, cpm and put into comboSubjTbl
         cumuTYsubj = cell(1, width(dataTable));
         for c = 1:width(dataTable)
             EEG_all  = dataTable{1,c}{1};
