@@ -1,3 +1,5 @@
+% rename to H_and_P_2x2_spectra ?
+
 %% Start eeglab
 clear
 eeglabpath = 'C:\Program Files\MATLAB\R2022a\eeglab2023.0';
