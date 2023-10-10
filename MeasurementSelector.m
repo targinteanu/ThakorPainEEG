@@ -184,7 +184,7 @@ for idx = 1:length(PLOTSEL)
     elseif strcmp(plotSel, 'Band Power Ratio')
         for bIdx = 1:length(bnd)
             if isa(bnd{bIdx}, 'char') | isa(bnd{bIdx}, 'string')
-                bnd{bIdx} = band2freqs(bnd, BandTableHz);
+                bnd{bIdx} = band2freqs(bnd{bIdx}, BandTableHz);
             end
         end
         fcn{idx} = @(Spec, EEG) frqFcnEpoch(Spec, EEG, @(w,P) ratAmp(w,P,bnd{1},bnd{2}));
