@@ -1,6 +1,10 @@
+% rename to H_vs_P_vs_Baseline_topoplots ?
+% create new function: H_vs_P_2x2_topoplots ?
+
 %% Start eeglab
 clear
-eeglabpath = 'C:\Program Files\MATLAB\R2022a\eeglab2023.0';
+%eeglabpath = 'C:\Program Files\MATLAB\R2022a\eeglab2023.0';
+eeglabpath = '/Applications/MATLAB_R2021b.app/toolbox/eeglab2022.0';
 addpath(eeglabpath)
 eeglab
 
@@ -48,7 +52,7 @@ DATATABLES = cell(size(scanfiles));
 for s = 1:length(scanfiles)
     sf = scanfiles{s};
 
-    dataTables = cell(length(sf),nMeas,2); % 1 is tY, 2 is original 
+    dataTables = cell(length(sf),nMeas);  
     for subj = 1:length(sf)
         fn = sf{subj}
         load(fn);
@@ -182,31 +186,37 @@ for c = 1:width(comboSubjTbl)
                [length(somechan),height(statsTable)]);
     for ch = 1:length(somechan)
         % P vs H
-        [~,p,~,S] = ...
-            ttest2( comboSubjTbl{2,c}{1}(:,ch,2), ...
-                    comboSubjTbl{1,c}{1}(:,ch,2), ...
-                    'Vartype', 'unequal' );
+        if (~isempty(comboSubjTbl{1,c}{1}))&(~isempty(comboSubjTbl{2,c}{1}))
+            [~,p,~,S] = ...
+                ttest2( comboSubjTbl{2,c}{1}(:,ch,2), ...
+                comboSubjTbl{1,c}{1}(:,ch,2), ...
+                'Vartype', 'unequal' );
+            s(ch,1).tstat = S.tstat;
+            s(ch,1).pval  = p;
+        end
         s(ch,1).chan  = somechan(ch);
-        s(ch,1).tstat = S.tstat;
-        s(ch,1).pval  = p;
 
         % H vs baseline 
-        [~,p,~,S] = ...
-            ttest2( comboSubjTbl{1,c}{1}(:,ch,2), ...
-                    comboSubjTbl{1,1}{1}(:,ch,2), ...
-                    'Vartype', 'unequal' );
+        if ~isempty(comboSubjTbl{1,c}{1})
+            [~,p,~,S] = ...
+                ttest2( comboSubjTbl{1,c}{1}(:,ch,2), ...
+                comboSubjTbl{1,1}{1}(:,ch,2), ...
+                'Vartype', 'unequal' );
+            s(ch,2).tstat = S.tstat;
+            s(ch,2).pval  = p;
+        end
         s(ch,2).chan  = somechan(ch);
-        s(ch,2).tstat = S.tstat;
-        s(ch,2).pval  = p;
 
         % P vs baseline 
-        [~,p,~,S] = ...
-            ttest2( comboSubjTbl{2,c}{1}(:,ch,2), ...
-                    comboSubjTbl{2,1}{1}(:,ch,2), ...
-                    'Vartype', 'unequal' );
+        if ~isempty(comboSubjTbl{2,c}{1})
+            [~,p,~,S] = ...
+                ttest2( comboSubjTbl{2,c}{1}(:,ch,2), ...
+                comboSubjTbl{2,1}{1}(:,ch,2), ...
+                'Vartype', 'unequal' );
+            s(ch,3).tstat = S.tstat;
+            s(ch,3).pval  = p;
+        end
         s(ch,3).chan  = somechan(ch);
-        s(ch,3).tstat = S.tstat;
-        s(ch,3).pval  = p;
 
         clear p S
     end
@@ -235,11 +245,18 @@ for r = 1:height(statsTable)
         maxstatval = max(maxstatval, max(S)); minstatval = min(minstatval, min(S));
     end
 end
+
+% rename table for plotting 
 statsTable.Properties.VariableNames = {...
-    'Baseline',          ... BaselineBefore
-    'BaselineAfter',     ... BaselineAfter
+    'Baseline',          ... BaselineOpenBefore
+    'After',             ... BaselineOpenAfter
+    'Eyes Closed',       ... BaselineClosedBefore
+    'Eyes CLosed After', ... BaselineClosedAfter
     'Heat Stimulus',     ... TempStim
     'Sharp Stimulus',    ... PinPrick 
+    'Pressure Stimulus', ... Pressure
+    'Sharp + CPM',       ... PinPrickCPM
+    'Pressure + CPM'     ... PressureCPM
     };
 statsTables{n} = statsTable;
 

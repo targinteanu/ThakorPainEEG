@@ -5,6 +5,7 @@
 %   Spec_table: frequency spectra of the EEG_table
 %   Epoch_table: split into individual EEG objects for each epoch
 %   EpochSpec_table: frequency spectra of the Epoch_table 
+%   Combined_table: combines all the above in one wider/taller table
 % 
 % Save output in .mat file in a new folder within folder of source files. 
 % Folder name details epoch length and overlap, as well as date/time of 
